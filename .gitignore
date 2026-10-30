@@ -1,0 +1,22 @@
+node_modules/
+.next/
+dist/
+.turbo/
+.env*
+!.env.example
+*.log
+.DS_Store
+
+# Build artifacts
+*.tsbuildinfo
+
+# Lockfile npm (este projeto usa pnpm)
+package-lock.json
+
+# Arquivos locais / sensíveis
+acessos.txt
+prompt.txt
+.claude/settings.local.json
+
+# Repositório git aninhado acidental (vazio)
+partiudfAutomado/

@@ -1,0 +1,7 @@
+{
+  // Usa o TypeScript do projeto (5.9.3) em vez da versão embutida do VSCode.
+  // O VSCode vinha usando o TS 6.0 (beta), que acusa deprecações futuras
+  // (ex.: moduleResolution "node") que NÃO existem na versão que compila/builda.
+  "typescript.tsdk": "apps/api/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

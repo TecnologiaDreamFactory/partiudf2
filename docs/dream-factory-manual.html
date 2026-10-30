@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PARTIU DF — Manual técnico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --df-blue: #00A8E8;
+      --df-blue-dark: #0086BD;
+      --df-blue-soft: #E6F6FE;
+      --df-ink: #0A1929;
+      --df-muted: #64748B;
+      --df-surface: #FFFFFF;
+      --df-surface-2: #F8FAFC;
+      --df-border: #E2E8F0;
+      --df-danger: #DC2626;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --df-blue: #29B6F0;
+        --df-blue-dark: #00A8E8;
+        --df-blue-soft: rgba(0, 168, 232, 0.14);
+        --df-ink: #E2E8F0;
+        --df-muted: #94A3B8;
+        --df-surface: #0F172A;
+        --df-surface-2: #0A1224;
+        --df-border: #1F2A44;
+        --df-danger: #F87171;
+      }
+      html { color-scheme: dark; }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--df-surface-2);
+      color: var(--df-ink);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.65;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 24px 96px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--df-blue);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .brand-mark::before, .brand-mark::after {
+      content: '';
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+    }
+    .brand-mark::before {
+      width: 14px;
+      height: 14px;
+      top: 7px;
+      left: 8px;
+    }
+    .brand-mark::after {
+      width: 6px;
+      height: 6px;
+      bottom: 8px;
+      right: 9px;
+    }
+    .brand-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: var(--df-blue);
+      text-transform: uppercase;
+    }
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', 'Inter', sans-serif;
+      color: var(--df-ink);
+      line-height: 1.25;
+      margin-top: 1.8em;
+      margin-bottom: 0.5em;
+    }
+    h1 { font-size: 2.1rem; font-weight: 700; margin-top: 0; }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      padding-top: 1em;
+      border-top: 1px solid var(--df-border);
+    }
+    h3 { font-size: 1.2rem; font-weight: 600; }
+    h4 { font-size: 1.05rem; font-weight: 600; }
+    p { margin: 0 0 1em; }
+    a {
+      color: var(--df-blue);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    a:hover { border-bottom-color: var(--df-blue); }
+    blockquote {
+      border-left: 3px solid var(--df-blue);
+      background: var(--df-blue-soft);
+      padding: 12px 18px;
+      margin: 16px 0;
+      border-radius: 0 8px 8px 0;
+      color: var(--df-ink);
+    }
+    blockquote p:last-child { margin-bottom: 0; }
+    code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.9em;
+      background: var(--df-surface);
+      color: var(--df-blue-dark);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--df-border);
+    }
+    pre {
+      background: var(--df-ink);
+      color: #E2E8F0;
+      padding: 16px 20px;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid var(--df-border);
+      box-shadow: 0 2px 12px rgba(10, 25, 41, 0.06);
+    }
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: 0.88em;
+      line-height: 1.6;
+    }
+    @media (prefers-color-scheme: dark) {
+      pre { background: #020617; }
+    }
+    hr {
+      border: none;
+      border-top: 1px solid var(--df-border);
+      margin: 32px 0;
+    }
+    ul, ol { padding-left: 24px; margin: 0 0 1em; }
+    li { margin: 4px 0; }
+    li > input[type="checkbox"] { margin-right: 6px; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 18px 0;
+      font-size: 0.94em;
+      background: var(--df-surface);
+      border: 1px solid var(--df-border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(10, 25, 41, 0.04);
+    }
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--df-border);
+    }
+    th {
+      background: var(--df-blue-soft);
+      color: var(--df-blue-dark);
+      font-weight: 600;
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--df-surface-2); }
+    .toc {
+      background: var(--df-surface);
+      border: 1px solid var(--df-border);
+      border-radius: 12px;
+      padding: 16px 22px;
+    }
+    .toc ol { margin: 0; padding-left: 22px; }
+    .toc a { color: var(--df-ink); }
+    .toc a:hover { color: var(--df-blue); }
+    .footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--df-border);
+      color: var(--df-muted);
+      font-size: 0.85em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <span class="brand-text">PARTIU DF</span>
+    </div>
+    <h1>PARTIU DF — Manual técnico consolidado</h1>
+<blockquote>
+<p>Documento único reunindo: instruções para rodar o app, bibliotecas utilizadas, decisões de design, mudanças feitas na sessão de 2026-05-22 e plano para virar APK com notificações push.</p>
+</blockquote>
+<hr>
+<h2>Sumário</h2>
+<ol>
+<li><a href="#1-vis%C3%A3o-geral-do-stack">Visão geral do stack</a></li>
+<li><a href="#2-bibliotecas-e-ferramentas">Bibliotecas e ferramentas</a></li>
+<li><a href="#3-como-rodar-o-app-localmente">Como rodar o app localmente</a></li>
+<li><a href="#4-style-guide-dream-factory">Style guide PARTIU DF</a></li>
+<li><a href="#5-dark-mode">Dark mode</a></li>
+<li><a href="#6-splash-animado-com-a-van">Splash animado com a van</a></li>
+<li><a href="#7-decis%C3%B5es-e-corre%C3%A7%C3%B5es-de-ux">Decisões e correções de UX</a></li>
+<li><a href="#8-sem-login-obrigat%C3%B3rio-para-passageiro">Sem login obrigatório para passageiro</a></li>
+<li><a href="#9-arquivos-modificados-na-sess%C3%A3o">Arquivos modificados na sessão</a></li>
+<li><a href="#10-plano-virar-apk--notifica%C3%A7%C3%B5es-push">Plano: virar APK + notificações push</a></li>
+<li><a href="#11-pr%C3%B3ximos-passos-sugeridos">Próximos passos sugeridos</a></li>
+</ol>
+<hr>
+<h2>1. Visão geral do stack</h2>
+<ul>
+<li><strong>Monorepo</strong> com pnpm + Turborepo</li>
+<li><strong>Web</strong> (<code>apps/web</code>): Next.js 15 (App Router), React 19</li>
+<li><strong>API</strong> (<code>apps/api</code>): NestJS, Socket.IO, Prisma 7</li>
+<li><strong>Banco</strong>: MySQL 8 (via Docker em desenvolvimento)</li>
+<li><strong>Shared</strong> (<code>packages/shared</code>): tipos e enums</li>
+</ul>
+<p>Estrutura de pastas:</p>
+<pre><code>dream-driver/
+├── apps/
+│   ├── web/          # Next.js (frontend)
+│   └── api/          # NestJS (backend)
+├── packages/
+│   └── shared/       # Tipos e enums compartilhados
+├── docker-compose.yml   # MySQL para desenvolvimento
+├── docs/                # documentação (este arquivo + outros)
+├── turbo.json
+├── pnpm-workspace.yaml
+└── tsconfig.base.json
+</code></pre>
+<hr>
+<h2>2. Bibliotecas e ferramentas</h2>
+<h3>2.1. Runtime</h3>
+<table>
+<thead>
+<tr>
+<th>Pacote</th>
+<th>Versão (aprox.)</th>
+<th>Para que</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Node.js</td>
+<td>18+ (testado em 24)</td>
+<td>Runtime JS</td>
+</tr>
+<tr>
+<td>pnpm</td>
+<td>9.14.2</td>
+<td>Gerenciador de pacotes monorepo</td>
+</tr>
+<tr>
+<td>Turborepo</td>
+<td>2.x</td>
+<td>Orquestrador de tarefas no monorepo</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>—</td>
+<td>MySQL local em container</td>
+</tr>
+</tbody></table>
+<h3>2.2. Frontend (<code>apps/web</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Pacote</th>
+<th>Para que</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>next</code> 15.5</td>
+<td>Framework React com SSR/SSG, App Router</td>
+</tr>
+<tr>
+<td><code>react</code> 19</td>
+<td>Biblioteca de UI</td>
+</tr>
+<tr>
+<td><code>tailwindcss</code></td>
+<td>Utility-first CSS, tokens via CSS variables</td>
+</tr>
+<tr>
+<td><code>motion</code> (Framer Motion v12)</td>
+<td>Animações declarativas hardware-accelerated (splash, fade, badges)</td>
+</tr>
+<tr>
+<td><code>class-variance-authority</code></td>
+<td>Variantes tipadas em Button/Badge</td>
+</tr>
+<tr>
+<td><code>clsx</code> + <code>tailwind-merge</code></td>
+<td>Util <code>cn()</code> para mesclar classes Tailwind</td>
+</tr>
+<tr>
+<td><code>lucide-react</code></td>
+<td>Ícones (MapPin, Wifi, RefreshCw, Sun/Moon, etc.)</td>
+</tr>
+<tr>
+<td><code>sonner</code></td>
+<td>Toasts (sucesso/erro/loading)</td>
+</tr>
+<tr>
+<td><code>next-themes</code></td>
+<td>Light/Dark mode com SSR seguro</td>
+</tr>
+<tr>
+<td><code>leaflet</code></td>
+<td>Mapa OpenStreetMap</td>
+</tr>
+<tr>
+<td><code>socket.io-client</code></td>
+<td>Real-time com o backend</td>
+</tr>
+</tbody></table>
+<h3>2.3. Backend (<code>apps/api</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Pacote</th>
+<th>Para que</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>@nestjs/core</code></td>
+<td>Framework Node modular</td>
+</tr>
+<tr>
+<td><code>@nestjs/websockets</code> + <code>socket.io</code></td>
+<td>Real-time (<code>trip.location</code>, <code>checkin.created</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>@nestjs/jwt</code> + <code>passport-jwt</code></td>
+<td>Autenticação JWT</td>
+</tr>
+<tr>
+<td><code>@prisma/client</code> 7</td>
+<td>ORM type-safe</td>
+</tr>
+<tr>
+<td><code>@prisma/adapter-mariadb</code></td>
+<td>Driver MariaDB/MySQL</td>
+</tr>
+<tr>
+<td><code>bcrypt</code></td>
+<td>Hash de senhas</td>
+</tr>
+<tr>
+<td><code>class-validator</code> + <code>class-transformer</code></td>
+<td>Validação de DTOs</td>
+</tr>
+<tr>
+<td><code>dotenv</code></td>
+<td>Leitura de <code>.env</code></td>
+</tr>
+</tbody></table>
+<h3>2.4. Tooling de dev</h3>
+<table>
+<thead>
+<tr>
+<th>Pacote</th>
+<th>Para que</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>prisma</code> CLI</td>
+<td>Migrations, generate, db push</td>
+</tr>
+<tr>
+<td><code>eslint</code> 9 + <code>eslint-config-prettier</code></td>
+<td>Lint</td>
+</tr>
+<tr>
+<td><code>prettier</code> 3</td>
+<td>Formatação</td>
+</tr>
+<tr>
+<td><code>typescript</code></td>
+<td>Tipagem estática</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Como rodar o app localmente</h2>
+<h3>3.1. Pré-requisitos</h3>
+<ul>
+<li>Node.js 18+ — <a href="https://nodejs.org">nodejs.org</a></li>
+<li>Docker (para o MySQL) — <a href="https://docker.com">docker.com</a></li>
+<li>pnpm: <code>npm install -g pnpm</code></li>
+</ul>
+<h3>3.2. Subir o banco (MySQL via Docker)</h3>
+<pre><code class="language-bash">docker-compose up -d
+</code></pre>
+<p>Container: <code>dreamdriver-mysql</code> na porta <code>3306</code>, usuário <code>root</code> / senha <code>root</code>, banco <code>dreamdriver</code>.</p>
+<h3>3.3. Instalar dependências</h3>
+<pre><code class="language-bash">pnpm install --ignore-scripts
+</code></pre>
+<blockquote>
+<p>A flag <code>--ignore-scripts</code> é necessária em Node 24 com pnpm 9.14.2 (crash no postinstall do bcrypt). Cria os <code>.bin</code> mas pula postinstall problemáticos.</p>
+</blockquote>
+<h3>3.4. Configurar Prisma client (apps/api)</h3>
+<pre><code class="language-bash">cd apps/api
+node node_modules/prisma/build/index.js db push        # aplica o schema
+node node_modules/prisma/build/index.js generate       # gera o client
+node prisma/patch-client-node25.js                     # patch Node 24+
+</code></pre>
+<blockquote>
+<p>O patch substitui <code>require(&#39;#main-entry-point&#39;)</code> por <code>require(&#39;./index.js&#39;)</code> no client gerado, contornando o erro <code>ERR_PACKAGE_IMPORT_NOT_DEFINED</code> do Node 24+ com Prisma 7.</p>
+</blockquote>
+<h3>3.5. Popular o banco (seed)</h3>
+<pre><code class="language-bash">cd apps/api
+NODE_ENV=development node prisma/seed.js
+</code></pre>
+<p>Usuários de teste criados:</p>
+<table>
+<thead>
+<tr>
+<th>Perfil</th>
+<th>E-mail</th>
+<th>Senha</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Admin</td>
+<td><code>admin@local</code></td>
+<td><code>1234</code> (padrão) ou <code>312408</code> (alterada na sessão)</td>
+</tr>
+<tr>
+<td>Motorista</td>
+<td><code>driver@local</code></td>
+<td><code>123456</code></td>
+</tr>
+<tr>
+<td>Passageiro</td>
+<td><code>p1@local</code> / <code>p2@local</code></td>
+<td><code>123456</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Regra de senha do app: <strong>somente dígitos, 4 a 8 caracteres</strong> (<a href="../apps/api/src/auth/password.util.ts#L3">apps/api/src/auth/password.util.ts:3</a>).</p>
+</blockquote>
+<p>Para trocar a senha do admin:</p>
+<pre><code class="language-bash">cd apps/api
+node prisma/set-password.js admin@local 312408
+</code></pre>
+<h3>3.6. Subir o projeto</h3>
+<p><strong>Dev (hot reload):</strong></p>
+<pre><code class="language-bash">pnpm dev
+</code></pre>
+<p><strong>Prod (sem botão &quot;N&quot; do Next, mais rápido):</strong></p>
+<pre><code class="language-bash">pnpm --filter @partiudf/web build
+# em outro terminal:
+pnpm --filter @partiudf/api start
+pnpm --filter @partiudf/web start
+</code></pre>
+<h3>3.7. URLs</h3>
+<ul>
+<li>Web: <a href="http://localhost:3000">http://localhost:3000</a> (passageiro abre direto, sem login)</li>
+<li>API: <a href="http://localhost:3001">http://localhost:3001</a></li>
+<li>Banco (DBeaver/Workbench): <code>localhost:3306</code> user <code>root</code> senha <code>root</code> banco <code>dreamdriver</code></li>
+</ul>
+<h3>3.8. Conexão direta no banco</h3>
+<pre><code class="language-bash">docker exec -it dreamdriver-mysql mysql -uroot -proot dreamdriver
+</code></pre>
+<hr>
+<h2>4. Style guide PARTIU DF</h2>
+<h3>4.1. Tokens de design (CSS variables)</h3>
+<p>Definidos em <a href="../apps/web/src/app/globals.css">apps/web/src/app/globals.css</a>, expostos no Tailwind via <a href="../apps/web/tailwind.config.ts">apps/web/tailwind.config.ts</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Light</th>
+<th>Dark</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--df-blue</code></td>
+<td><code>#00A8E8</code></td>
+<td><code>#29B6F0</code></td>
+<td>Botão primário, links, destaques</td>
+</tr>
+<tr>
+<td><code>--df-blue-dark</code></td>
+<td><code>#0086BD</code></td>
+<td><code>#00A8E8</code></td>
+<td>Hover / pressed</td>
+</tr>
+<tr>
+<td><code>--df-blue-soft</code></td>
+<td><code>#E6F6FE</code></td>
+<td><code>rgba(0,168,232,0.14)</code></td>
+<td>Fundo de chip &quot;atual&quot;</td>
+</tr>
+<tr>
+<td><code>--df-ink</code></td>
+<td><code>#0A1929</code></td>
+<td><code>#E2E8F0</code></td>
+<td>Texto principal</td>
+</tr>
+<tr>
+<td><code>--df-muted</code></td>
+<td><code>#64748B</code></td>
+<td><code>#94A3B8</code></td>
+<td>Texto secundário</td>
+</tr>
+<tr>
+<td><code>--df-surface</code></td>
+<td><code>#FFFFFF</code></td>
+<td><code>#0F172A</code></td>
+<td>Fundo de cards</td>
+</tr>
+<tr>
+<td><code>--df-surface-2</code></td>
+<td><code>#F8FAFC</code></td>
+<td><code>#0A1224</code></td>
+<td>Fundo da página</td>
+</tr>
+<tr>
+<td><code>--df-border</code></td>
+<td><code>#E2E8F0</code></td>
+<td><code>#1F2A44</code></td>
+<td>Bordas</td>
+</tr>
+<tr>
+<td><code>--df-danger</code></td>
+<td><code>#DC2626</code></td>
+<td><code>#F87171</code></td>
+<td>Erros / cancelar</td>
+</tr>
+<tr>
+<td><code>--df-success</code></td>
+<td><code>#16A34A</code></td>
+<td><code>#34D399</code></td>
+<td>OK</td>
+</tr>
+<tr>
+<td><code>--df-warning</code></td>
+<td><code>#D97706</code></td>
+<td><code>#FBBF24</code></td>
+<td>Atenção</td>
+</tr>
+</tbody></table>
+<h3>4.2. Tipografia</h3>
+<ul>
+<li><strong>Body</strong>: Inter (<code>var(--font-inter)</code>)</li>
+<li><strong>Display</strong>: Outfit (<code>var(--font-outfit)</code>)</li>
+</ul>
+<p>Configurado no <a href="../apps/web/src/app/layout.tsx">layout.tsx</a> via <code>next/font/google</code>.</p>
+<h3>4.3. Componentes UI (<code>apps/web/src/components/ui/</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Arquivo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Button.tsx</code></td>
+<td>Variantes <code>primary</code>, <code>ghost</code>, <code>outline</code>, <code>danger</code>, <code>dangerSolid</code>, <code>subtle</code>. Sizes <code>sm</code>/<code>md</code>/<code>lg</code>/<code>icon</code>. Props <code>isLoading</code>, <code>fullWidth</code> (true/false/responsive)</td>
+</tr>
+<tr>
+<td><code>Card.tsx</code></td>
+<td>+ <code>CardHeader</code>, <code>CardTitle</code>, <code>CardDescription</code></td>
+</tr>
+<tr>
+<td><code>Input.tsx</code></td>
+<td>Suporte a <code>label</code>, <code>error</code>, <code>hint</code>. Acessível com <code>aria-describedby</code> / <code>aria-invalid</code></td>
+</tr>
+<tr>
+<td><code>Badge.tsx</code></td>
+<td>Variantes <code>brand</code>, <code>neutral</code>, <code>success</code>, <code>warning</code>, <code>danger</code>, <code>live</code> (ponto pulsante)</td>
+</tr>
+<tr>
+<td><code>Skeleton.tsx</code></td>
+<td>Animação shimmer com cores que trocam em dark mode</td>
+</tr>
+<tr>
+<td><code>EmptyState.tsx</code></td>
+<td>Ícone + título + descrição + ação para estados vazios/erro</td>
+</tr>
+</tbody></table>
+<h3>4.4. Componentes globais</h3>
+<table>
+<thead>
+<tr>
+<th>Arquivo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="../apps/web/src/components/Logo.tsx"><code>Logo.tsx</code></a></td>
+<td>Usa o PNG em <code>public/logo2.png</code></td>
+</tr>
+<tr>
+<td><a href="../apps/web/src/components/AppShell.tsx"><code>AppShell.tsx</code></a></td>
+<td>Header sticky com backdrop blur, logo, título, badge, ações e ThemeToggle</td>
+</tr>
+<tr>
+<td><a href="../apps/web/src/components/ThemeProvider.tsx"><code>ThemeProvider.tsx</code></a></td>
+<td>Wrapper de <code>next-themes</code></td>
+</tr>
+<tr>
+<td><a href="../apps/web/src/components/ThemeToggle.tsx"><code>ThemeToggle.tsx</code></a></td>
+<td>Botão sol/lua (light ↔ dark, sem opção sistema)</td>
+</tr>
+<tr>
+<td><a href="../apps/web/src/components/TimeAgo.tsx"><code>TimeAgo.tsx</code></a></td>
+<td>&quot;Xs / Xmin atrás&quot; com tick interno isolado</td>
+</tr>
+<tr>
+<td><a href="../apps/web/src/components/VanLoader.tsx"><code>VanLoader.tsx</code></a></td>
+<td>Splash com a van animada via motion</td>
+</tr>
+</tbody></table>
+<h3>4.5. PWA</h3>
+<ul>
+<li>Manifest em <a href="../apps/web/public/manifest.json">apps/web/public/manifest.json</a> — <code>name</code>, <code>short_name</code>, <code>theme_color: #00A8E8</code>, <code>display: standalone</code></li>
+<li><code>&lt;meta theme-color&gt;</code> no layout (variantes claro <code>#00A8E8</code> e escuro <code>#0F172A</code>)</li>
+<li><code>apple-web-app-capable</code>, viewport <code>width=device-width</code>, <code>viewport-fit=cover</code> (notch iOS)</li>
+<li>Botões e links em mobile com alvo mínimo <strong>44×44px</strong> via CSS em <code>globals.css</code> (<code>@media (pointer: coarse)</code>)</li>
+</ul>
+<hr>
+<h2>5. Dark mode</h2>
+<ul>
+<li><code>darkMode: &#39;class&#39;</code> no Tailwind</li>
+<li>Tokens viraram CSS variables → componentes não precisam de <code>dark:</code> em cada lugar; basta usar <code>bg-df-surface</code>, <code>text-df-ink</code>, etc.</li>
+<li><code>next-themes</code> controlando <code>&lt;html class=&quot;light|dark&quot;&gt;</code>, com <code>suppressHydrationWarning</code> no <code>&lt;html&gt;</code></li>
+<li><code>colorScheme: dark</code> no CSS para form controls nativos seguirem o tema</li>
+<li>Ajustes nos controles do Leaflet (<code>.leaflet-control-zoom</code>, atribuição) em dark</li>
+<li>Toggle só alterna entre claro e escuro (default inicial: sistema operacional)</li>
+</ul>
+<hr>
+<h2>6. Splash animado com a van</h2>
+<p>Tela de carregamento personalizada com a van PARTIU DF atravessando antes do app abrir.</p>
+<h3>6.1. Biblioteca</h3>
+<p><a href="https://motion.dev"><code>motion</code></a> — Framer Motion v12, animações React declarativas, hardware-accelerated.</p>
+<pre><code class="language-bash">pnpm --filter @partiudf/web add motion --ignore-scripts
+</code></pre>
+<h3>6.2. Asset</h3>
+<p><code>apps/web/public/van.png</code> (PNG da van; espelhada por CSS <code>transform: scaleX(-1)</code> para apontar na direção certa).</p>
+<h3>6.3. Componente</h3>
+<p><a href="../apps/web/src/components/VanLoader.tsx"><code>apps/web/src/components/VanLoader.tsx</code></a>:</p>
+<ul>
+<li>Van da <strong>direita para a esquerda</strong>, 5.5s por travessia, loop infinito</li>
+<li>Estrada pontilhada azul correndo no sentido oposto (esquerda → direita)</li>
+<li>Três bolinhas pulsando ao lado da mensagem (&quot;Procurando a van…&quot;)</li>
+<li><code>will-change: transform / background-position</code> para GPU</li>
+</ul>
+<h3>6.4. Splash gate (mínimo 5s + fade in/out)</h3>
+<p>A página <code>/p</code> foi alterada para garantir que <strong>a aplicação só monte depois que o splash termine</strong>:</p>
+<pre><code class="language-tsx">// Estado de splash com tempo mínimo de 5s.
+const [splashDone, setSplashDone] = useState(false);
+useEffect(() =&gt; {
+  const t = setTimeout(() =&gt; setSplashDone(true), 5000);
+  return () =&gt; clearTimeout(t);
+}, []);
+
+const showSplash = authOk === null || (authOk === true &amp;&amp; !splashDone);
+const showApp   = authOk === true &amp;&amp; splashDone;
+</code></pre>
+<p><strong>Comportamento:</strong></p>
+<ul>
+<li>Splash entra com fade-in (0.6s) e sai com fade-out (0.6s) via <code>&lt;AnimatePresence&gt;</code> + <code>&lt;motion.div&gt;</code></li>
+<li>Cobre tela inteira em <code>z-[9999]</code> (acima de qualquer controle do Leaflet)</li>
+<li>Enquanto <code>showApp</code> for falso, <strong>nada</strong> da aplicação é montado:<ul>
+<li><code>&lt;AppShell&gt;</code> não renderiza</li>
+<li><code>&lt;MapView&gt;</code> não renderiza (mapa não baixa tiles)</li>
+<li><code>useEffect</code> de polling <code>syncStatus</code> (a cada 4s) não dispara</li>
+<li><code>useEffect</code> de Socket.IO connect/listeners não dispara</li>
+<li>Endpoint de pickup points não é chamado</li>
+</ul>
+</li>
+<li>Quando <code>showApp</code> flipa para true, a AppShell monta e o splash inicia o fade-out</li>
+</ul>
+<p>Em caso de erro de bootstrap (não consegue criar sessão), o splash é ignorado e a tela de erro é renderizada direto com botão &quot;Tentar novamente&quot;.</p>
+<hr>
+<h2>7. Decisões e correções de UX</h2>
+<h3>7.1. &quot;Salto&quot; da UI durante viagem ativa</h3>
+<p><strong>Causa:</strong> <code>setInterval(forceTick, 1000)</code> no <code>/p</code> re-renderizava a página inteira a cada segundo. Textos &quot;Última atualização: Xs atrás&quot; mudavam de largura, cards mudavam de altura.</p>
+<p><strong>Correção:</strong></p>
+<ul>
+<li>Removido <code>forceTick</code></li>
+<li>Criado <a href="../apps/web/src/components/TimeAgo.tsx"><code>&lt;TimeAgo&gt;</code></a> com tick interno</li>
+<li>Criado <code>LiveOrWeakBadge</code> (inline no <code>/p</code>) com tick interno</li>
+<li>Criado <code>MapHud</code> no <a href="../apps/web/src/components/MapView.tsx">MapView.tsx</a> com tick interno</li>
+<li><code>min-h-[1.25rem]</code> no <code>CardDescription</code></li>
+<li><code>min-w-[88px]</code> no badge live/weak</li>
+<li><code>min-w-[140px]</code> no HUD do mapa</li>
+<li><code>fontVariantNumeric: &#39;tabular-nums&#39;</code> no contador de segundos</li>
+</ul>
+<h3>7.2. &quot;Salto&quot; quando não há viagem ativa</h3>
+<p><strong>Causa:</strong> <code>syncStatus()</code> a cada 4s forçava <code>setUi(&#39;LOADING&#39;)</code> antes do fetch, fazendo a tela piscar entre skeleton ↔ empty state.</p>
+<p><strong>Correção:</strong> <code>syncStatus()</code> mantém o estado atual durante refresh em background. <code>LOADING</code> só aparece no primeiro carregamento. Também usa setter funcional para evitar criar novas refs vazias em arrays já vazios.</p>
+<h3>7.3. Botão &quot;N&quot; do Next.js DevTools</h3>
+<p>Só existe em modo dev. Em produção (<code>next start</code> após <code>next build</code>) <strong>não aparece</strong>. Passageiros nunca o veem.</p>
+<p>Workarounds em dev tentados (sem sucesso total):</p>
+<ul>
+<li><code>devIndicators: false</code> em <code>next.config.ts</code></li>
+<li><code>experimental.devtoolSegmentExplorer: false</code></li>
+<li><code>POST /__nextjs_disable_dev_indicator</code> (esconde por 24h)</li>
+</ul>
+<p>Conclusão: rodar em prod para demonstrações.</p>
+<h3>7.4. Erro de GPS &quot;1 - Permissão negada&quot;</h3>
+<p>Vem do browser, não do app (<code>PERMISSION_DENIED</code> da Geolocation API). Resolver em:</p>
+<ul>
+<li>Chrome/Edge → ícone de cadeado na URL → Localização → Permitir</li>
+<li>Windows: Configurações → Privacidade e segurança → Localização → ativar serviço + permitir apps de desktop</li>
+</ul>
+<p>Acessado por <strong>IP</strong> em outro dispositivo (ex.: celular em <code>http://192.168.x.x:3000</code>)? O browser bloqueia GPS porque não é HTTPS — precisa de túnel HTTPS (ngrok / cloudflared) ou certificado mkcert.</p>
+<h3>7.5. Badge &quot;Aguardando viagem&quot; removido</h3>
+<p>A pedido — quando não há viagem ativa, o header fica só com &quot;Passageiro&quot; sem badge.</p>
+<hr>
+<h2>8. Sem login obrigatório para passageiro</h2>
+<p>A pedido — passageiro nunca passa por tela de login.</p>
+<p><strong>Mudanças:</strong></p>
+<ul>
+<li><a href="../apps/web/src/app/page.tsx"><code>/</code> (page.tsx)</a> sempre redireciona para <code>/p</code>, sem checar role</li>
+<li><a href="../apps/web/src/app/p/page.tsx"><code>/p</code></a> sempre renderiza a UI de passageiro. Se localStorage tiver sessão de ADMIN/DRIVER, é <strong>ignorada</strong> e uma sessão de convidado é criada via <code>ensurePassengerSession()</code> (<a href="../apps/web/src/lib/auth/passengerSession.ts">apps/web/src/lib/auth/passengerSession.ts</a>)</li>
+<li>Sessão de convidado usa um <code>guestId</code> (UUID em <code>localStorage</code>) e bate em <code>POST /auth/passenger-session</code> no API</li>
+<li>Admin e motorista continuam fazendo login em <code>/login</code> → redirecionado a <code>/admin</code> ou <code>/d</code></li>
+</ul>
+<hr>
+<h2>9. Arquivos modificados na sessão</h2>
+<pre><code>apps/web/
+├── next.config.ts                          (devIndicators: false, experimental.devtoolSegmentExplorer: false)
+├── tailwind.config.ts                      (darkMode: class, tokens df-* via CSS variables)
+├── package.json                            (CVA, clsx, twmerge, lucide, sonner, next-themes, motion)
+├── public/
+│   ├── manifest.json                       (PWA)
+│   ├── logo2.png                           (logo PARTIU DF)
+│   └── van.png                             (NEW — usado no VanLoader)
+└── src/
+    ├── app/
+    │   ├── layout.tsx                      (Inter+Outfit, ThemeProvider, Toaster, viewport, theme-color light+dark)
+    │   ├── globals.css                     (tokens light+dark, skeleton, safe-area, leaflet ajustes)
+    │   ├── page.tsx                        (sempre redirect /p)
+    │   ├── p/page.tsx                      (refatorada inteira + sem login + splash gate)
+    │   ├── login/page.tsx                  (com Logo + ThemeToggle, hint senha)
+    │   ├── d/page.tsx                      (sweep cores → df-*)
+    │   ├── admin/page.tsx                  (sweep cores → df-*)
+    │   └── profile/page.tsx                (sweep cores → df-*)
+    ├── components/
+    │   ├── Logo.tsx                        (usa /logo2.png)
+    │   ├── AppShell.tsx                    (header sticky + ThemeToggle)
+    │   ├── ThemeProvider.tsx               (NEW)
+    │   ├── ThemeToggle.tsx                 (NEW — só light/dark)
+    │   ├── TimeAgo.tsx                     (NEW — isolado)
+    │   ├── VanLoader.tsx                   (NEW — splash com motion)
+    │   ├── MapView.tsx                     (MapHud isolado, tokens df-*)
+    │   └── ui/
+    │       ├── Button.tsx                  (CVA, variantes, isLoading)
+    │       ├── Card.tsx                    (+ Header/Title/Description)
+    │       ├── Input.tsx                   (hint, aria-invalid)
+    │       ├── Badge.tsx                   (NEW)
+    │       ├── Skeleton.tsx                (NEW)
+    │       └── EmptyState.tsx              (NEW)
+    └── lib/
+        └── utils.ts                        (NEW — cn() helper)
+
+apps/api/
+└── prisma/
+    └── (scripts já existentes: patch-client-node25.js, set-password.js, seed.js)
+
+docs/
+├── dream-factory-manual.md                 (este arquivo)
+├── dream-factory-manual.html               (versão HTML)
+├── sessao-2026-05-22-front-passageiro.md   (notas detalhadas da sessão)
+└── plano-apk-notificacoes.md               (plano técnico para APK + push)
+</code></pre>
+<hr>
+<h2>10. Plano: virar APK + notificações push</h2>
+<p>Estratégia em <strong>duas fases</strong>. Detalhamento completo em <a href="./plano-apk-notificacoes.md">docs/plano-apk-notificacoes.md</a>.</p>
+<h3>10.1. Fase 1 — PWA + Web Push (~4 dias)</h3>
+<p>Caminho mais curto, sem Play Store. Passageiros instalam pelo Chrome Android (&quot;Adicionar à tela inicial&quot;). Notificações funcionam mesmo com o app fechado em Android.</p>
+<p><strong>Tarefas:</strong></p>
+<ol>
+<li>Gerar ícones (192, 384, 512, maskable, apple-touch)</li>
+<li>Atualizar <code>manifest.json</code> com novos ícones + <code>purpose: maskable</code></li>
+<li>Criar <code>apps/web/public/sw.js</code> (service worker com <code>push</code> + <code>notificationclick</code>)</li>
+<li>Registrar service worker em layout</li>
+<li>Lib <code>apps/web/src/lib/push.ts</code> com <code>subscribePush()</code></li>
+<li>UI: botão &quot;🔔 Ativar notificações&quot; em <code>/p</code></li>
+<li>Schema Prisma: model <code>PushSubscription</code></li>
+<li>Endpoint Nest <code>POST /push/subscribe</code> e <code>DELETE /push/subscribe</code></li>
+<li>PushService usando <code>web-push</code> (com chaves VAPID)</li>
+<li>Gatilhos: <code>trip.started</code>, <code>van.approaching</code>, <code>trip.ended</code></li>
+</ol>
+<p><strong>Pré-requisitos:</strong></p>
+<ul>
+<li>HTTPS em produção</li>
+<li>Chaves VAPID (<code>npx web-push generate-vapid-keys</code>)</li>
+</ul>
+<p><strong>Limitação iOS:</strong> funciona apenas se usuário &quot;Adicionar à Tela de Início&quot; (iOS 16.4+).</p>
+<h3>10.2. Fase 2 — APK nativo via Capacitor (~7 dias adicionais)</h3>
+<p>Empacotar o web app dentro de uma WebView Android. Gera <code>.apk</code>/<code>.aab</code>, distribui na Play Store, ganha <strong>GPS em background</strong> robusto (essencial para o motorista) e push nativo via FCM em iOS+Android.</p>
+<p><strong>Bibliotecas-chave:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pacote</th>
+<th>Para que</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>@capacitor/core</code> + <code>@capacitor/android</code></td>
+<td>Wrapper nativo</td>
+</tr>
+<tr>
+<td><code>@capacitor/push-notifications</code></td>
+<td>Push via FCM</td>
+</tr>
+<tr>
+<td><code>@capacitor/geolocation</code> + <code>@capacitor-community/background-geolocation</code></td>
+<td>GPS em background</td>
+</tr>
+<tr>
+<td><code>firebase-admin</code> (backend)</td>
+<td>Enviar push pela FCM</td>
+</tr>
+</tbody></table>
+<p><strong>Configurações:</strong></p>
+<ul>
+<li>Projeto no Firebase Console com <code>applicationId: com.dreamfactory.app</code></li>
+<li><code>google-services.json</code> em <code>apps/web/android/app/</code></li>
+<li><code>FCM_SERVER_KEY</code> no <code>.env</code> da API</li>
+<li>Keystore para assinar o APK (<code>keytool -genkey ...</code>)</li>
+</ul>
+<p><strong>Custos:</strong> Google Play Developer Account = US$ 25 (único, vitalício).</p>
+<h3>10.3. Comparativo</h3>
+<table>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th>Fase 1 (PWA + Web Push)</th>
+<th>Fase 2 (Capacitor APK)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tempo</td>
+<td>~4 dias</td>
+<td>+7 dias (acumulado: 11)</td>
+</tr>
+<tr>
+<td>Instalação</td>
+<td>&quot;Adicionar à tela inicial&quot;</td>
+<td>APK / Play Store</td>
+</tr>
+<tr>
+<td>Push Android</td>
+<td>✅ funciona</td>
+<td>✅ via FCM (mais robusto)</td>
+</tr>
+<tr>
+<td>Push iOS</td>
+<td>⚠️ exige A2HS</td>
+<td>✅ funciona</td>
+</tr>
+<tr>
+<td>GPS background</td>
+<td>⚠️ limitado</td>
+<td>✅ foreground service</td>
+</tr>
+<tr>
+<td>Atualização</td>
+<td>Instantânea</td>
+<td>Via Play Store ou OTA</td>
+</tr>
+<tr>
+<td>Custos</td>
+<td>$0</td>
+<td>$25 (Play Store)</td>
+</tr>
+<tr>
+<td>Reutiliza código atual</td>
+<td>100%</td>
+<td>100%</td>
+</tr>
+</tbody></table>
+<p><strong>Recomendação:</strong> começar pela Fase 1. Decidir Fase 2 depois de validar adoção e medir fricção do GPS background do motorista.</p>
+<hr>
+<h2>11. Próximos passos sugeridos</h2>
+<ul>
+<li><input type="checkbox" disabled aria-label="pendente"> Migrar <code>/d</code> (motorista) para o novo design system</li>
+<li><input type="checkbox" disabled aria-label="pendente"> Migrar <code>/admin</code> (~769 linhas)</li>
+<li><input type="checkbox" disabled aria-label="pendente"> Migrar <code>/profile</code> (~201 linhas)</li>
+<li><input type="checkbox" disabled aria-label="pendente"> Gerar ícones PWA em vários tamanhos (192×192, 512×512, maskable) a partir do logo</li>
+<li><input type="checkbox" disabled aria-label="pendente"> HTTPS local para testar GPS no celular via IP (ngrok / cloudflared / mkcert)</li>
+<li><input type="checkbox" disabled aria-label="pendente"> Trocar <code>&lt;img&gt;</code> por <code>&lt;Image&gt;</code> do <code>next/image</code> nos lugares marcados pelo lint</li>
+<li><input type="checkbox" disabled aria-label="pendente"> Executar a Fase 1 do plano: PWA + Web Push</li>
+<li><input type="checkbox" disabled aria-label="pendente"> (Posterior) Executar Fase 2 com Capacitor + FCM se necessário</li>
+</ul>
+
+    <div class="footer">
+      Gerado a partir de <code>docs/dream-factory-manual.md</code>
+    </div>
+  </div>
+</body>
+</html>

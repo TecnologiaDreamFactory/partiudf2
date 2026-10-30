@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  DRIVER
+  PASSENGER
+}
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  role       UserRole
+  name       String?
+  avatarUrl  String?
+  createdAt  DateTime  @default(now())
+  trips      Trip[]
+  checkins   Checkin[]
+}
+
+model PickupPoint {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  lat        Float
+  lng        Float
+  address    String?
+  createdAt  DateTime  @default(now())
+  checkins   Checkin[]
+}
+
+enum CheckinStatus {
+  ACTIVE
+  CANCELED
+}
+
+model Checkin {
+  id             String        @id @default(cuid())
+  tripId         String
+  userId         String
+  pickupPointId  String
+  status         CheckinStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  trip           Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pickupPoint    PickupPoint   @relation(fields: [pickupPointId], references: [id], onDelete: Restrict)
+
+  @@unique([tripId, userId])
+}
+
+enum TripStatus {
+  ACTIVE
+  ENDED
+}
+
+model Trip {
+  id         String     @id @default(cuid())
+  driverId   String
+  status     TripStatus
+  startedAt  DateTime
+  endedAt    DateTime?
+  driver     User       @relation(fields: [driverId], references: [id])
+  checkins   Checkin[]
+}
+

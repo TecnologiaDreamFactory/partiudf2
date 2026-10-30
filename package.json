@@ -1,0 +1,35 @@
+{
+  "name": "partiudf",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "marked": "^18.0.4",
+    "prettier": "^3.2.5",
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.14.2",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "PARTIU DF",
+  "short_name": "PARTIU DF",
+  "description": "Acompanhamento em tempo real da van PARTIU DF",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#00A8E8",
+  "categories": ["travel", "navigation", "utilities"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/dream-factory-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo2.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deploy Partiu DF — Railway</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #161a23;
+    --card2: #1c212d;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --border: #2a3140;
+    --accent: #6c8cff;
+    --accent2: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --code-bg: #0b0e14;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 96px; }
+  header.hero {
+    background: linear-gradient(135deg, #1b2030, #11141d);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    margin-bottom: 32px;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.5px; }
+  header.hero p { margin: 0; color: var(--muted); }
+  .badge {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px; margin-bottom: 14px;
+    background: rgba(108,140,255,0.15); color: var(--accent);
+    border: 1px solid rgba(108,140,255,0.3);
+  }
+  h2 {
+    margin-top: 44px; font-size: 23px; letter-spacing: -0.3px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  h3 { margin-top: 28px; font-size: 18px; color: #cdd4e2; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    padding: 1.5px 6px; border-radius: 5px; font-size: 13.5px;
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    color: #e3b341;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.5;
+  }
+  pre code { background: none; border: none; padding: 0; color: #c9d1d9; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 18px 0;
+    background: var(--card); border-radius: 10px; overflow: hidden;
+    font-size: 14.5px;
+  }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  th { background: var(--card2); font-weight: 600; color: #cdd4e2; }
+  tr:last-child td { border-bottom: none; }
+  td code, th code { font-size: 12.5px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin: 20px 0;
+  }
+  .note, .warn, .danger {
+    border-radius: 10px; padding: 12px 16px; margin: 16px 0;
+    border-left: 4px solid; font-size: 14.5px;
+  }
+  .note { background: rgba(52,211,153,0.08); border-color: var(--accent2); }
+  .warn { background: rgba(251,191,36,0.08); border-color: var(--warn); }
+  .danger { background: rgba(248,113,113,0.08); border-color: var(--danger); }
+  .phase-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; margin-right: 10px;
+    background: var(--accent); color: #0b0e14; font-weight: 700; font-size: 15px;
+    vertical-align: middle;
+  }
+  .arch {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; font-family: "SF Mono", Consolas, monospace;
+    font-size: 12.5px; color: #8fb3ff; white-space: pre; overflow-x: auto; line-height: 1.45;
+  }
+  ul.checklist { list-style: none; padding-left: 4px; }
+  ul.checklist li { margin: 8px 0; padding-left: 28px; position: relative; }
+  ul.checklist li::before {
+    content: "☐"; position: absolute; left: 0; color: var(--accent); font-size: 17px;
+  }
+  .toc { columns: 2; column-gap: 28px; }
+  .toc a { display: block; padding: 4px 0; color: var(--muted); font-size: 14.5px; }
+  .toc a:hover { color: var(--accent); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 13px; text-align: center; }
+  @media (max-width: 640px) { .toc { columns: 1; } .wrap { padding: 24px 16px 64px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="badge">GUIA DE DEPLOY</span>
+    <h1>Partiu DF — Deploy no Railway</h1>
+    <p>Web (Next.js) + API (NestJS) + MySQL · tudo no Railway · sem VPS · plano Hobby US$5/mês</p>
+  </header>
+
+  <div class="card">
+    <strong>Índice</strong>
+    <nav class="toc">
+      <a href="#arquitetura">1. Por que essa arquitetura</a>
+      <a href="#prereq">2. Pré-requisitos</a>
+      <a href="#fase1">3. Fase 1 — Railway (MySQL + API)</a>
+      <a href="#fase2">4. Fase 2 — Railway (Web)</a>
+      <a href="#fase3">5. Fase 3 — Ligar os dois</a>
+      <a href="#dominio">6. Domínio próprio (opcional)</a>
+      <a href="#verificacao">7. Verificação final</a>
+      <a href="#cicd">8. CI/CD</a>
+      <a href="#problemas">9. Solução de problemas</a>
+      <a href="#custos">10. Custos estimados</a>
+      <a href="#checklist">11. Checklist</a>
+    </nav>
+  </div>
+
+  <h2 id="arquitetura">1. Por que essa arquitetura</h2>
+  <p>O Partiu DF é um monorepo com <strong>três peças que rodam ao mesmo tempo</strong>:</p>
+  <table>
+    <tr><th>Peça</th><th>Tecnologia</th><th>Precisa de</th></tr>
+    <tr><td><strong>Web</strong></td><td>Next.js 15</td><td>Servidor Node (SSR)</td></tr>
+    <tr><td><strong>API</strong></td><td>NestJS + Socket.IO</td><td>Processo Node 24/7 + WebSocket</td></tr>
+    <tr><td><strong>MySQL</strong></td><td>Prisma (adapter mariadb)</td><td>Banco de dados persistente</td></tr>
+  </table>
+  <p>Hospedagem compartilhada / "Site estático" <strong>não roda</strong> API NestJS, WebSocket nem MySQL.
+     A solução adotada é hospedar <strong>as três peças no Railway</strong>, cada uma como um
+     <strong>serviço</strong> dentro do <strong>mesmo projeto</strong> (assim elas se enxergam pela rede
+     interna e compartilham variáveis):</p>
+  <div class="arch">                 Internet (HTTPS)
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+  partiudf-web.up.railway.app   partiudf-api.up.railway.app
+        │                             │
+   ┌────▼────┐                  ┌─────▼─────┐
+   │  WEB    │  ── fetch ─────▶ │   API     │
+   │ Next.js │  ── WebSocket ─▶ │  NestJS   │
+   │(Railway)│                  │ (Railway) │
+   └─────────┘                  └─────┬─────┘
+                                      │
+                                ┌─────▼─────┐
+                                │  MySQL    │
+                                │ (Railway) │
+                                └───────────┘</div>
+  <div class="warn"><strong>A ordem do deploy importa:</strong> a Web precisa da URL da API, e a API
+    precisa da URL da Web (CORS). Por isso: <strong>MySQL + API primeiro</strong> →
+    <strong>Web depois</strong> → <strong>ligar os dois</strong> (CORS) no fim.</div>
+
+  <h2 id="prereq">2. Pré-requisitos</h2>
+  <ul>
+    <li>Conta no <strong>GitHub</strong> com o repositório <code>TecnologiaDreamFactory/partiudf</code>.</li>
+    <li>Conta no <strong>Railway</strong> — <a href="https://railway.app">railway.app</a></li>
+    <li><strong>Node.js 20+</strong> instalado localmente (para gerar o <code>JWT_SECRET</code> e rodar o seed via CLI).</li>
+  </ul>
+  <div class="note">O repositório já está preparado: <code>apps/api/Dockerfile</code>,
+    <code>apps/api/entrypoint.sh</code> (roda <code>prisma migrate deploy</code> no boot),
+    <code>apps/web/Dockerfile</code> (Web Next.js; recebe <code>NEXT_PUBLIC_*</code> como <strong>build args</strong>) e
+    <code>package.json</code> com <code>packageManager: pnpm@9.14.2</code> +
+    <code>pnpm.onlyBuiltDependencies</code> (libera build de <code>bcrypt</code>, <code>prisma</code>,
+    <code>sharp</code>, etc.).</div>
+
+  <h2 id="fase1"><span class="phase-num">1</span>Fase 1 — Railway (MySQL + API)</h2>
+
+  <h3>3.1 Criar o banco MySQL</h3>
+  <ol>
+    <li>Acesse <a href="https://railway.app">railway.app</a> → <strong>New Project</strong>.</li>
+    <li>Escolha <strong>Provision MySQL</strong> (ou <strong>Add a Database → MySQL</strong>).</li>
+    <li>O banco sobe sozinho. <strong>Não precisa configurar nada</strong> nele agora.</li>
+  </ol>
+
+  <h3>3.2 Criar o serviço da API</h3>
+  <ol>
+    <li>No mesmo projeto → <strong>New</strong> → <strong>GitHub Repo</strong> → selecione
+      <code>TecnologiaDreamFactory/partiudf</code>.</li>
+    <li>Em <strong>Settings</strong> do serviço:
+      <ul>
+        <li><strong>Root Directory</strong>: <code>/</code> (o Dockerfile copia a partir da raiz)</li>
+        <li><strong>Build → Dockerfile Path</strong>: <code>apps/api/Dockerfile</code></li>
+      </ul>
+    </li>
+    <li>Em <strong>Variables</strong>, adicione:</li>
+  </ol>
+  <table>
+    <tr><th>Variável</th><th>Valor</th></tr>
+    <tr><td><code>DATABASE_URL</code></td><td><code>${{MySQL.MYSQL_URL}}</code> (referência ao serviço MySQL)</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>chave forte (ver 3.3)</td></tr>
+    <tr><td><code>SEED_ADMIN_EMAIL</code></td><td>email do admin (ex.: <code>ti@dreamfactory.com.br</code>)</td></tr>
+    <tr><td><code>SEED_ADMIN_PASSWORD</code></td><td>senha <strong>numérica</strong> forte (o login aceita só dígitos)</td></tr>
+  </table>
+  <div class="warn"><strong>Não</strong> defina <code>PORT</code> (o Railway injeta automaticamente).
+    <strong>Não</strong> defina <code>CORS_ORIGIN</code> ainda — isso é feito na Fase 3.</div>
+  <ol start="4">
+    <li><strong>Settings → Networking → Generate Domain</strong> para a API ganhar uma URL pública
+      (ex.: <code>partiudf-api.up.railway.app</code>). <strong>Anote essa URL.</strong></li>
+  </ol>
+
+  <h3>3.3 Gerar o <code>JWT_SECRET</code></h3>
+  <pre><code>node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"</code></pre>
+  <p>Copie o valor gerado e cole na variável <code>JWT_SECRET</code>.</p>
+
+  <h3>3.4 Conferir o deploy</h3>
+  <p>Nos <strong>logs</strong> da API no Railway você deve ver:</p>
+  <pre><code>[entrypoint] prisma migrate deploy
+...
+API running on port XXXX</code></pre>
+  <p>Se aparecer erro de conexão, confira <code>DATABASE_URL = ${{MySQL.MYSQL_URL}}</code> e se o
+     MySQL está no mesmo projeto.</p>
+
+  <h2 id="fase2"><span class="phase-num">2</span>Fase 2 — Railway (Web)</h2>
+  <div class="warn">Faça esta fase <strong>somente depois</strong> de ter a URL pública da API (Fase 1).</div>
+  <ol>
+    <li>No <strong>mesmo projeto</strong> do Railway → <strong>New</strong> → <strong>GitHub Repo</strong> →
+      selecione novamente <code>TecnologiaDreamFactory/partiudf</code> (vira um <strong>segundo serviço</strong>, o da Web).</li>
+    <li>Em <strong>Settings</strong> do serviço da Web:
+      <ul>
+        <li><strong>Root Directory</strong>: <code>/</code> (o Dockerfile copia a partir da raiz)</li>
+        <li><strong>Build → Dockerfile Path</strong>: <code>apps/web/Dockerfile</code></li>
+      </ul>
+    </li>
+    <li>Em <strong>Variables</strong>, adicione (troque pela URL real da API da Fase 1):</li>
+  </ol>
+  <table>
+    <tr><th>Variável</th><th>Valor</th></tr>
+    <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>https://SUA-API.up.railway.app</code></td></tr>
+    <tr><td><code>NEXT_PUBLIC_WS_URL</code></td><td><code>https://SUA-API.up.railway.app</code></td></tr>
+  </table>
+  <div class="warn">As <code>NEXT_PUBLIC_*</code> são <strong>embutidas no build</strong> (o
+    <code>apps/web/Dockerfile</code> as recebe como <code>ARG</code>). O Railway repassa as variáveis do
+    serviço como <strong>build args</strong> automaticamente. Se mudar a URL da API depois, é preciso
+    <strong>redeployar</strong> a Web (Deployments → Redeploy) para reembutir o valor.
+    <strong>Não</strong> defina <code>PORT</code> (o Railway injeta; o Dockerfile usa <code>${PORT}</code>).</div>
+  <ol start="4">
+    <li><strong>Settings → Networking → Generate Domain</strong> para a Web ganhar uma URL pública
+      (ex.: <code>partiudf-web.up.railway.app</code>). <strong>Anote essa URL</strong> — usada na Fase 3 (CORS).</li>
+  </ol>
+
+  <h2 id="fase3"><span class="phase-num">3</span>Fase 3 — Ligar os dois (CORS + admin)</h2>
+
+  <h3>5.1 Liberar o CORS na API</h3>
+  <ol>
+    <li><strong>Railway → API → Variables</strong> → adicione:</li>
+  </ol>
+  <table>
+    <tr><th>Variável</th><th>Valor</th></tr>
+    <tr><td><code>CORS_ORIGIN</code></td><td>URL da Web no Railway com <code>https://</code> e <strong>sem barra final</strong> (ex.: <code>https://partiudf-web.up.railway.app</code>)</td></tr>
+  </table>
+  <p>Salvar reinicia a API (o CORS é lido no boot). Para vários domínios, separe por vírgula:
+     <code>https://partiudf-web.up.railway.app,https://www.seudominio.com</code>.</p>
+
+  <h3>5.2 Criar o admin (seed — roda uma vez)</h3>
+  <pre><code>npm i -g @railway/cli
+railway login
+railway link          # escolha o projeto e o serviço da API
+railway run pnpm --filter @partiudf/api prisma:seed:prod</code></pre>
+  <p>O seed usa <code>SEED_ADMIN_EMAIL</code> / <code>SEED_ADMIN_PASSWORD</code> do Railway para criar o admin.</p>
+
+  <h2 id="dominio">6. Domínio próprio (opcional)</h2>
+  <p>O <strong>Railway</strong> aceita domínio próprio com <strong>HTTPS automático</strong>. O recomendado
+     são <strong>dois subdomínios</strong> (um para a Web, um para a API):</p>
+  <table>
+    <tr><th>Peça</th><th>Onde</th><th>Domínio sugerido</th></tr>
+    <tr><td>Web</td><td>Railway</td><td><code>app.seudominio.com.br</code> (ou a raiz <code>seudominio.com.br</code>)</td></tr>
+    <tr><td>API</td><td>Railway</td><td><code>api.seudominio.com.br</code></td></tr>
+    <tr><td>MySQL</td><td>Railway</td><td>— (interno, sem domínio público)</td></tr>
+  </table>
+
+  <h3>6.1 Configurar o domínio (Web e API)</h3>
+  <p>Para <strong>cada</strong> serviço (Web e API):</p>
+  <ol>
+    <li>Railway → serviço → <strong>Settings → Networking → Custom Domain</strong>.</li>
+    <li>Digite o subdomínio desejado (<code>app.seudominio.com.br</code> para a Web,
+      <code>api.seudominio.com.br</code> para a API).</li>
+    <li>O Railway mostra um registro <strong>CNAME</strong> (ex.: <code>api</code> → <code>xxxx.up.railway.app</code>). Crie-o no seu provedor de DNS.</li>
+    <li>Aguarde a propagação (minutos a algumas horas). O <strong>SSL é emitido automaticamente</strong>.</li>
+  </ol>
+
+  <h3>6.2 Atualizar as variáveis (obrigatório)</h3>
+  <p>Ao migrar para o domínio próprio, ajuste estas variáveis — senão CORS/WebSocket quebram:</p>
+  <table>
+    <tr><th>Onde</th><th>Variável</th><th>Novo valor</th></tr>
+    <tr><td>Railway (API)</td><td><code>CORS_ORIGIN</code></td><td><code>https://app.seudominio.com.br</code></td></tr>
+    <tr><td>Railway (Web)</td><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>https://api.seudominio.com.br</code></td></tr>
+    <tr><td>Railway (Web)</td><td><code>NEXT_PUBLIC_WS_URL</code></td><td><code>https://api.seudominio.com.br</code></td></tr>
+  </table>
+  <div class="warn">As <code>NEXT_PUBLIC_*</code> são embutidas no build → <strong>redeploye a Web</strong>
+    no Railway depois de mudar. O Railway <strong>não cobra extra</strong> por domínio próprio;
+    você paga só o registrador (~R$40–60/ano).</div>
+
+  <h2 id="verificacao">7. Verificação final</h2>
+  <ol>
+    <li>Abra <code>https://SUA-API.up.railway.app/health</code> → deve responder <code>{"ok":true,...}</code>.</li>
+    <li>Abra a URL da Web no Railway no navegador.</li>
+    <li>Faça <strong>login</strong> com o admin do seed (senha numérica).</li>
+    <li>Teste: mapa, rastreamento GPS, WebSocket (tempo real).</li>
+  </ol>
+  <div class="note"><strong>PWA + geolocalização</strong> só funcionam em <strong>HTTPS</strong> —
+    o Railway já fornece HTTPS por padrão. ✅</div>
+
+  <h2 id="cicd">8. CI/CD (deploy automático)</h2>
+  <ul>
+    <li><strong>Railway (API)</strong>: cada <code>push</code> na <code>main</code> redeploya a API.</li>
+    <li><strong>Railway (Web)</strong>: cada <code>push</code> na <code>main</code> redeploya a Web.</li>
+    <li>Migrations rodam sozinhas no boot da API (<code>entrypoint.sh → prisma migrate deploy</code>).</li>
+  </ul>
+
+  <h2 id="problemas">9. Solução de problemas</h2>
+  <table>
+    <tr><th>Sintoma</th><th>Causa provável</th><th>Correção</th></tr>
+    <tr><td><code>ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING</code></td><td>pnpm novo em Node antigo</td><td>Node 20+ no ambiente (resolvido)</td></tr>
+    <tr><td>Corepack reclama da versão do pnpm</td><td><code>packageManager</code> ≠ pnpm do ambiente</td><td>manter <code>pnpm@9.14.2</code> (no repo)</td></tr>
+    <tr><td><code>ignored build scripts</code> (bcrypt/prisma/sharp)</td><td>pnpm 10/11 bloqueia scripts nativos</td><td><code>pnpm.onlyBuiltDependencies</code> (no <code>package.json</code>)</td></tr>
+    <tr><td>Erro de CORS na web</td><td><code>CORS_ORIGIN</code> errado</td><td>bater exatamente com a URL da Web no Railway (https, sem barra)</td></tr>
+    <tr><td>WebSocket não conecta</td><td><code>NEXT_PUBLIC_WS_URL</code> ou CORS</td><td>apontar para a API e <strong>redeployar a Web</strong></td></tr>
+    <tr><td>Web mostra URL de API antiga</td><td><code>NEXT_PUBLIC_*</code> é embutida no build</td><td>mudar a variável e <strong>redeployar a Web</strong> (rebuild)</td></tr>
+    <tr><td>Login 400/401</td><td>senha não numérica ou admin ausente</td><td>senha só com dígitos; rodar o seed (5.2)</td></tr>
+    <tr><td>API não conecta no banco</td><td><code>DATABASE_URL</code> errado</td><td>usar <code>${{MySQL.MYSQL_URL}}</code>; MySQL no mesmo projeto</td></tr>
+  </table>
+
+  <h2 id="custos">10. Custos estimados</h2>
+  <p>Com <strong>tudo no Railway</strong>, usamos o plano <strong>Hobby (US$5/mês)</strong>, que cobre os
+     três serviços (Web + API + MySQL). Os US$5 já incluem uma franquia de uso; só se passar dela é que
+     paga o excedente — e na prática isso fica em <strong>centavos</strong>.</p>
+  <table>
+    <tr><th>Item</th><th>Serviço</th><th>Custo</th></tr>
+    <tr><td>Web + API + MySQL</td><td>Railway (Hobby)</td><td>US$5/mês (+ centavos só se estourar a franquia)</td></tr>
+    <tr><td>HTTPS / SSL</td><td>Railway</td><td>Grátis (automático)</td></tr>
+    <tr><td>Domínio próprio (opcional)</td><td>registrador</td><td>~R$40–60/ano</td></tr>
+  </table>
+  <div class="note">Como agora a Web também roda no Railway (não mais na Vercel), ela soma ao consumo do
+    projeto. Acompanhe o uso no painel <strong>Usage</strong> do Railway para não estourar a franquia do Hobby.</div>
+
+  <h2 id="checklist">11. Checklist resumido</h2>
+  <ul class="checklist">
+    <li>Railway: criar projeto + MySQL</li>
+    <li>Railway: criar serviço da <strong>API</strong> (Dockerfile <code>apps/api/Dockerfile</code>, root <code>/</code>)</li>
+    <li>Railway: variáveis da API <code>DATABASE_URL</code>, <code>JWT_SECRET</code>, <code>SEED_ADMIN_EMAIL</code>, <code>SEED_ADMIN_PASSWORD</code></li>
+    <li>Railway: gerar domínio público da API</li>
+    <li>Railway: criar serviço da <strong>Web</strong> (Dockerfile <code>apps/web/Dockerfile</code>, root <code>/</code>)</li>
+    <li>Railway: variáveis da Web <code>NEXT_PUBLIC_API_URL</code> / <code>NEXT_PUBLIC_WS_URL</code></li>
+    <li>Railway: gerar domínio público da Web</li>
+    <li>Railway: definir <code>CORS_ORIGIN</code> (na API) = URL da Web</li>
+    <li>Rodar seed do admin (Railway CLI)</li>
+    <li>(Opcional) Domínio próprio na Web/API + atualizar <code>CORS_ORIGIN</code> e <code>NEXT_PUBLIC_*</code> (redeploy da Web)</li>
+    <li>Testar: <code>/health</code>, login, mapa, GPS, WebSocket, PWA no Android</li>
+  </ul>
+
+  <footer>Partiu DF · Guia de deploy no Railway · gerado em 2026-06-07</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resumo — atualizações passageiro (Dream Driver)</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, sans-serif; line-height: 1.45; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 { font-size: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+    h2 { font-size: 1.2rem; margin-top: 1.75rem; }
+    h3 { font-size: 1rem; margin-top: 1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 0.75rem 0; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.6rem; text-align: left; }
+    th { background: #f5f5f5; }
+    code { font-size: 0.88em; background: #f4f4f4; padding: 0.1em 0.35em; border-radius: 3px; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 2rem 0; }
+    .meta { color: #555; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    @media print {
+      body { margin: 0; max-width: none; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <p class="meta">Dream Driver — documentação interna. Para PDF: <strong>Ctrl+P</strong> (ou Imprimir) → <strong>Guardar como PDF</strong>.</p>
+
+  <h1>Resumo das duas últimas atualizações (passageiro)</h1>
+
+  <p>Referência das entregas no perfil <strong>passageiro</strong> (<code>/p</code>).</p>
+
+  <hr />
+
+  <h2>1. Retirar a obrigatoriedade de login (apenas passageiro)</h2>
+
+  <h3>Objetivo</h3>
+  <p>O passageiro <strong>não passa pela tela de login</strong> com e-mail/senha; a app obtém automaticamente um <strong>JWT de convidado</strong> (sessão anónima por navegador), porque o backend continua a exigir utilizador e token para viagem e WebSocket.</p>
+
+  <h3>Comportamento</h3>
+  <ul>
+    <li><strong>Raiz <code>/</code></strong>: sem sessão guardada, redireciona para <strong><code>/p</code></strong> em vez de <code>/login</code> (<code>apps/web/src/app/page.tsx</code>).</li>
+    <li><strong><code>/p</code></strong>: remove <code>requireAuth</code> e redirect para <code>/login</code>; se existir sessão <strong>ADMIN</strong> ou <strong>DRIVER</strong>, redireciona para <code>/admin</code> ou <code>/d</code>; caso contrário chama <strong><code>ensurePassengerSession()</code></strong> (<code>apps/web/src/lib/auth/passengerSession.ts</code>).</li>
+    <li><strong>Sessão anónima</strong>: <code>localStorage</code> guarda <code>dreamdriver_passenger_guest_id</code> (UUID); <code>POST /auth/passenger-session</code> com <code>{ guestId }</code> cria ou reutiliza utilizador <code>guest_&lt;uuid&gt;@passenger.local</code> com papel <strong>PASSENGER</strong> e devolve <code>{ token, user }</code> (JWT longo, ex.: 365 dias).</li>
+    <li><strong>API</strong>: <code>AuthService.passengerSession</code> (<code>apps/api/src/auth/auth.service.ts</code>) + rota pública <code>POST /auth/passenger-session</code> (<code>apps/api/src/auth/auth.controller.ts</code>).</li>
+    <li><strong>Motorista e admin</strong> continuam a usar <strong><code>/login</code></strong> e <code>requireAuth</code> nas respetivas páginas.</li>
+  </ul>
+
+  <h3>Ficheiros principais</h3>
+  <table>
+    <thead><tr><th>Área</th><th>Ficheiros</th></tr></thead>
+    <tbody>
+      <tr><td>API</td><td><code>apps/api/src/auth/auth.service.ts</code>, <code>apps/api/src/auth/auth.controller.ts</code></td></tr>
+      <tr><td>Web</td><td><code>apps/web/src/lib/auth/passengerSession.ts</code>, <code>apps/web/src/lib/auth/index.ts</code>, <code>apps/web/src/lib/auth.ts</code>, <code>apps/web/src/app/page.tsx</code>, <code>apps/web/src/app/p/page.tsx</code></td></tr>
+    </tbody>
+  </table>
+
+  <hr />
+
+  <h2>2. “Retirar” o check-in para o passageiro (só acompanhar a van)</h2>
+
+  <h3>Objetivo</h3>
+  <p><strong>Desativar a interface de check-in</strong> (botões, lista “Passageiros por ponto”, marcadores de passageiros/pontos no mapa) <strong>sem apagar</strong> a lógica nem os endpoints da API.</p>
+
+  <h3>Comportamento</h3>
+  <ul>
+    <li>Variável <strong><code>NEXT_PUBLIC_PASSENGER_CHECKIN_ENABLED</code></strong>: só com valor <strong><code>true</code></strong> a UI de check-in é mostrada; caso contrário (omissão ou <code>false</code>), o passageiro vê apenas <strong>status da viagem</strong>, <strong>Seguir van</strong> e o <strong>mapa com a van</strong> (<code>isPassengerCheckinEnabled()</code> em <code>apps/web/src/lib/env.ts</code>).</li>
+    <li>Com check-in desligado: não se pede <code>/checkins/pickup-points</code>; o snapshot não alimenta estado de check-ins para o mapa; eventos socket de check-in não atualizam lista visível.</li>
+    <li><strong>API</strong> (<code>POST /checkins</code>, etc.) <strong>inalterada</strong>; reativação = definir <code>NEXT_PUBLIC_PASSENGER_CHECKIN_ENABLED=true</code> e reiniciar o Next.js.</li>
+  </ul>
+
+  <h3>Ficheiros principais</h3>
+  <table>
+    <thead><tr><th>Área</th><th>Ficheiros</th></tr></thead>
+    <tbody>
+      <tr><td>Web</td><td><code>apps/web/src/lib/env.ts</code>, <code>apps/web/src/app/p/page.tsx</code></td></tr>
+      <tr><td>Doc env</td><td><code>.env.example</code> (comentário sobre a variável)</td></tr>
+    </tbody>
+  </table>
+
+  <hr />
+
+  <h2>Fluxo resumido</h2>
+  <ol>
+    <li>Utilizador abre <code>/</code> ou <code>/p</code> sem ser admin/motorista.</li>
+    <li>É gerido <code>guestId</code> no <code>localStorage</code> e chamado <code>POST /auth/passenger-session</code>.</li>
+    <li>Com JWT de passageiro, a app obtém estado da viagem e posição da van (snapshot + WebSocket).</li>
+    <li>A UI de check-in só aparece se <code>NEXT_PUBLIC_PASSENGER_CHECKIN_ENABLED=true</code>.</li>
+  </ol>
+
+  <hr />
+  <p style="font-size:0.85rem;color:#666;">Ficheiros gerados: <code>docs/resumo-passageiro-atualizacoes.md</code> e este HTML.</p>
+</body>
+</html>
