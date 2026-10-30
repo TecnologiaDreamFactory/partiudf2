@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Logo } from '@/components/Logo';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { Tag } from '@/components/ui/Tag';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,55 +49,64 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8 sm:px-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Logo className="h-10 w-10" />
-          <div>
-            <h1 className="text-xl font-semibold text-df-ink">PARTIU DF</h1>
-            <p className="text-sm text-df-muted">Entre para continuar</p>
-          </div>
-        </div>
-        <ThemeToggle />
+    <main className="mx-auto flex min-h-svh w-full max-w-md flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
+      <div className="flex h-11 items-center">
+        <span className="flex items-center gap-2.5 text-[20px] leading-none tracking-[-.04em] text-df-ink">
+          <Logo className="size-8" />
+          <span>
+            <span className="font-light">partiu</span>
+            <b className="font-bold">df</b>
+          </span>
+        </span>
       </div>
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div
-              className="rounded-xl border border-red-200/70 bg-red-50 px-4 py-3 text-sm text-df-danger dark:border-red-900/40 dark:bg-red-950/40"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
-          <Input
-            label="Email"
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="admin@local"
-            autoComplete="email"
-            inputMode="email"
-          />
-          <Input
-            label="Senha"
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="••••"
-            autoComplete="current-password"
-            inputMode="numeric"
-            hint="4 a 8 dígitos numéricos"
-          />
-          <Button type="submit" isLoading={loading} fullWidth>
-            {loading ? 'Entrando…' : 'Entrar'}
-          </Button>
-        </form>
-      </Card>
+
+      <div className="flex flex-1 flex-col justify-center py-10">
+        <Tag>Acesso</Tag>
+        <h1 className="mt-5 text-[44px] text-df-ink sm:text-[56px]">
+          entre para <span className="text-grad">continuar</span>
+        </h1>
+        <p className="mt-3 text-[15px] text-df-muted">Motorista e administração.</p>
+
+        <Card className="mt-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div
+                className="rounded-2xl bg-df-danger/10 px-4 py-3 text-[15px] text-df-danger"
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
+            <Input
+              label="Email"
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="voce@email.com"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+            />
+            <Input
+              label="Senha"
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••"
+              autoComplete="current-password"
+              inputMode="numeric"
+              hint="4 a 8 dígitos numéricos"
+            />
+            <Button type="submit" size="lg" isLoading={loading} fullWidth>
+              {loading ? 'entrando…' : 'entrar'}
+            </Button>
+          </form>
+        </Card>
+      </div>
     </main>
   );
 }

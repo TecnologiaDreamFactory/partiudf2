@@ -2,17 +2,18 @@ import type { HTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+/** Pilula do guide (.pills). Cores via tokens → funcionam no dark. */
 const badgeStyles = cva(
-  'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold lowercase',
   {
     variants: {
       variant: {
         brand: 'bg-df-blue-soft text-df-blue',
-        neutral: 'bg-df-surface-2 text-df-muted border border-df-border',
-        success: 'bg-emerald-50 text-emerald-700',
-        warning: 'bg-amber-50 text-amber-700',
-        danger: 'bg-red-50 text-df-danger',
-        live: 'bg-emerald-500/10 text-emerald-700 before:size-1.5 before:rounded-full before:bg-emerald-500 before:animate-pulse',
+        neutral: 'border border-df-border text-df-muted',
+        success: 'bg-df-success/10 text-df-success',
+        warning: 'bg-df-warning/10 text-df-warning',
+        danger: 'bg-df-danger/10 text-df-danger',
+        live: 'bg-df-success/10 text-df-success before:size-1.5 before:animate-pulse before:rounded-full before:bg-df-success before:content-[""]',
       },
     },
     defaultVariants: { variant: 'brand' },

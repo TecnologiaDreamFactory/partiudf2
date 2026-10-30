@@ -366,7 +366,7 @@ export default function AdminPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+        <div className="mb-4 rounded-lg border border-df-danger/30 bg-df-danger/10 px-4 py-3 text-df-danger">
           {error}
         </div>
       )}
@@ -417,7 +417,7 @@ export default function AdminPage() {
               variant="ghost"
               onClick={handleDeleteLogins}
               disabled={loginsDeleting}
-              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="text-df-danger hover:bg-df-danger/10 hover:text-df-danger"
             >
               {loginsDeleting ? 'Excluindo…' : 'Excluir logins de passageiros'}
             </Button>
@@ -555,7 +555,7 @@ export default function AdminPage() {
                           }}
                         />
                       ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-xs text-df-muted">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-df-surface-2 text-xs text-df-muted">
                           ?
                         </span>
                       )}
@@ -680,7 +680,7 @@ export default function AdminPage() {
                             variant="ghost"
                             onClick={() => handleDeleteUser(u)}
                             disabled={deletingUserId === u.id}
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            className="text-df-danger hover:bg-df-danger/10 hover:text-df-danger"
                           >
                             {deletingUserId === u.id ? 'Excluindo…' : 'Excluir'}
                           </Button>
@@ -874,7 +874,7 @@ export default function AdminPage() {
                             variant="ghost"
                             onClick={() => handleDeletePp(p.id)}
                             disabled={ppDeletingId === p.id}
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            className="text-df-danger hover:bg-df-danger/10 hover:text-df-danger"
                           >
                             {ppDeletingId === p.id ? 'Excluindo…' : 'Excluir'}
                           </Button>

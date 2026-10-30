@@ -11,7 +11,7 @@ interface LogoProps {
 /**
  * Logo PARTIU DF.
  *
- * Usa o PNG estático em /logo2.png (versão oficial da marca, já versionada
+ * Usa a marca (só o símbolo) em /logo.png — o logo2.png tem o texto em branco
  * em apps/web/public). Renderizamos com next/image desativado (uso de <img>)
  * para manter o componente puro e funcionar em qualquer contexto — inclusive
  * dentro de um header server-rendered.
@@ -20,7 +20,7 @@ export function Logo({ className, size = 32, alt = 'PARTIU DF' }: LogoProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/logo2.png"
+      src="/logo.png"
       alt={alt}
       width={size}
       height={size}

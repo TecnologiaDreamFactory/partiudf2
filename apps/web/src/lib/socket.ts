@@ -1,79 +1,139 @@
 'use client';
 
-import { io, type Socket } from 'socket.io-client';
-import { getWsUrl } from '@/lib/env';
-
-let socket: Socket | null = null;
+import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import { apiFetch } from '@/lib/api';
+import { getSupabaseConfig } from '@/lib/env';
 
 export type WsStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
 
-/* eslint-disable no-unused-vars -- expose() assigns debug helpers; params used when called from console */
-function expose(sock: Socket) {
-  if (typeof window === 'undefined') return;
-  if (process.env.NODE_ENV !== 'development') return;
+/* eslint-disable no-unused-vars -- assinatura dos callbacks */
+// any: cada tela tipa o payload do seu evento (ex.: (checkin: Checkin) => void)
+type Handler = (payload: any) => void;
 
-  (window as unknown as { __socket?: Socket }).__socket = sock;
-  (window as unknown as { __emit?: (ev: string, pay?: unknown) => void }).__emit = (ev, pay) =>
-    sock.emit(ev, pay);
-  (window as unknown as { __socketConnect?: (tok: string) => Socket }).__socketConnect = (tok) =>
-    getSocket(tok);
+/** Eventos publicados pelo servidor (src/server/realtime.ts) em cada canal. */
+const GLOBAL_EVENTS = ['trip.started', 'trip.ended'];
+const TRIP_EVENTS = ['trip.location', 'checkin.created', 'checkin.canceled', 'trip.ended'];
 
-  (window as unknown as { __socketInfo?: () => object }).__socketInfo = () => ({
-    id: sock.id,
-    connected: sock.connected,
-    url: (sock.io as unknown as { uri?: string })?.uri,
-  });
+/**
+ * Adaptador com a interface que as telas ja usavam do socket.io-client
+ * (on/off/emit/connected), agora sobre o Supabase Realtime:
+ *  - ouvir: canais privados `trips` e `trip:<id>` (o cliente so le; quem publica e o servidor);
+ *  - "emit": vira HTTP — trip.join assina o canal da viagem, trip.location vai para a API.
+ *
+ * ponytail: mantido so para nao reescrever /p e /d agora; some quando essas telas
+ * passarem a usar um hook proprio de tempo real.
+ */
+export class RealtimeSocket {
+  connected = false;
+  auth: { token: string };
+  private handlers = new Map<string, Set<Handler>>();
+  private client: SupabaseClient | null = null;
+  private trips = new Map<string, RealtimeChannel>();
+
+  constructor(token: string) {
+    this.auth = { token };
+  }
+
+  connect(): void {
+    if (this.client) return;
+    const cfg = getSupabaseConfig();
+    if (!cfg) {
+      console.warn('[realtime] NEXT_PUBLIC_SUPABASE_URL/ANON_KEY ausentes: sem tempo real');
+      this.fire('connect_error', { message: 'Tempo real não configurado' });
+      return;
+    }
+    this.client = createClient(cfg.url, cfg.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    this.subscribe('trips', GLOBAL_EVENTS, (status) => {
+      const was = this.connected;
+      this.connected = status === 'SUBSCRIBED';
+      if (this.connected && !was) this.fire('connect');
+      else if (!this.connected && was) this.fire('disconnect');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.fire('connect_error', { status });
+    });
+  }
+
+  on(event: string, fn: Handler): this {
+    if (!this.handlers.has(event)) this.handlers.set(event, new Set());
+    this.handlers.get(event)!.add(fn);
+    return this;
+  }
+
+  /** Sem `fn`, remove todos os handlers do evento (como no socket.io). */
+  off(event: string, fn?: Handler): this {
+    if (fn) this.handlers.get(event)?.delete(fn);
+    else this.handlers.delete(event);
+    return this;
+  }
+
+  removeAllListeners(): this {
+    this.handlers.clear();
+    return this;
+  }
+
+  emit(event: string, payload: { tripId?: string } & Record<string, unknown>): void {
+    const tripId = payload?.tripId;
+    if (!tripId) return;
+    if (event === 'trip.join') this.joinTrip(tripId);
+    else if (event === 'trip.location') {
+      apiFetch(`/trips/${encodeURIComponent(tripId)}/location`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }).catch((err: Error) => this.fire('realtime.error', { code: 'LOCATION', message: err.message }));
+    }
+  }
+
+  disconnect(): void {
+    if (this.client) void this.client.removeAllChannels();
+    this.client = null;
+    this.trips.clear();
+    if (this.connected) {
+      this.connected = false;
+      this.fire('disconnect');
+    }
+  }
+
+  private joinTrip(tripId: string) {
+    if (!this.client || this.trips.has(tripId)) {
+      if (this.trips.has(tripId)) this.fire('trip.joined', { tripId });
+      return;
+    }
+    const ch = this.subscribe(`trip:${tripId}`, TRIP_EVENTS, (status) => {
+      if (status === 'SUBSCRIBED') this.fire('trip.joined', { tripId });
+    });
+    this.trips.set(tripId, ch);
+  }
+
+  private subscribe(topic: string, events: string[], onStatus: (s: string) => void): RealtimeChannel {
+    const ch = this.client!.channel(topic, { config: { private: true } });
+    for (const ev of events) ch.on('broadcast', { event: ev }, ({ payload }) => this.fire(ev, payload));
+    ch.subscribe((status) => onStatus(status));
+    return ch;
+  }
+
+  private fire(event: string, payload?: unknown) {
+    this.handlers.get(event)?.forEach((fn) => fn(payload));
+  }
 }
 
-export function getSocket(token: string): Socket {
-  if (typeof window === 'undefined') {
-    throw new Error('getSocket must be called in the browser');
-  }
-  if (!token) {
-    throw new Error('token is required to create socket connection');
-  }
+export type Socket = RealtimeSocket;
 
-  if (!socket) {
-    socket = io(getWsUrl(), {
-      transports: ['websocket'],
-      autoConnect: true,
-      auth: { token },
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 500,
-      reconnectionDelayMax: 3000,
-    });
-  } else {
-    socket.auth = { token };
-    if (!socket.connected) socket.connect();
-  }
+let socket: RealtimeSocket | null = null;
 
-  expose(socket);
-
+export function getSocket(token: string): RealtimeSocket {
+  if (typeof window === 'undefined') throw new Error('getSocket must be called in the browser');
+  if (!token) throw new Error('token is required to create socket connection');
+  if (!socket) socket = new RealtimeSocket(token);
+  else socket.auth = { token };
+  socket.connect();
   return socket;
 }
 
-/**
- * Remove listeners, disconnect e zera o singleton.
- * Chamar antes de logout para limpar a conexão.
- */
+/** Fecha os canais e zera o singleton. Chamar no logout. */
 export function disconnectSocket(): void {
-  if (typeof window === 'undefined') return;
-  if (socket) {
-    socket.removeAllListeners();
-    socket.disconnect();
-    socket = null;
-  }
-}
-
-/** Callback for rejoin on connect - call with (socket, tripId) when socket connects */
-export function onConnectRejoin(
-  socket: Socket,
-  tripId: string | null,
-  rejoin: () => void,
-): () => void {
-  if (!tripId) return () => {};
-  const handler = () => rejoin();
-  socket.on('connect', handler);
-  return () => socket.off('connect', handler);
+  if (typeof window === 'undefined' || !socket) return;
+  socket.removeAllListeners();
+  socket.disconnect();
+  socket = null;
 }

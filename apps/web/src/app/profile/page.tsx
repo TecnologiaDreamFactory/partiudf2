@@ -110,7 +110,7 @@ export default function ProfilePage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+        <div className="mb-4 rounded-lg border border-df-danger/30 bg-df-danger/10 px-4 py-3 text-df-danger">
           {error}
         </div>
       )}
@@ -157,7 +157,7 @@ export default function ProfilePage() {
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           {passwordError && (
             <div
-              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              className="rounded-lg border border-df-danger/30 bg-df-danger/10 px-4 py-3 text-sm text-df-danger"
               role="alert"
             >
               {passwordError}
@@ -165,7 +165,7 @@ export default function ProfilePage() {
           )}
           {passwordSuccess && (
             <div
-              className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+              className="rounded-lg border border-df-success/30 bg-df-success/10 px-4 py-3 text-sm text-df-success"
               role="status"
             >
               Senha alterada com sucesso.

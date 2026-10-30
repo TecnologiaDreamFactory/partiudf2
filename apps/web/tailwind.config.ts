@@ -1,7 +1,12 @@
 import type { Config } from 'tailwindcss';
 
+/** Token CSS com suporte a opacidade do Tailwind (`bg-df-blue/40`). */
+const token = (name: string) =>
+  `color-mix(in srgb, var(--df-${name}) calc(<alpha-value> * 100%), transparent)`;
+
 export default {
-  darkMode: 'class',
+  // app usado quase so no celular: hover so onde existe mouse, sem "hover grudado" apos o toque
+  future: { hoverOnlyWhenSupported: true },
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     '../../packages/shared/src/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,54 +14,38 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Tokens via CSS variables → trocam automaticamente em dark.
+        // Tokens via CSS variables (globals.css), tema unico escuro.
         df: {
-          blue: 'var(--df-blue)',
-          'blue-dark': 'var(--df-blue-dark)',
+          blue: token('blue'),
+          'blue-dark': token('blue-dark'),
+          'blue-light': token('blue-light'),
           'blue-soft': 'var(--df-blue-soft)',
-          ink: 'var(--df-ink)',
-          muted: 'var(--df-muted)',
-          surface: 'var(--df-surface)',
-          'surface-2': 'var(--df-surface-2)',
+          ink: token('ink'),
+          muted: token('muted'),
+          surface: token('surface'),
+          'surface-2': token('surface-2'),
           border: 'var(--df-border)',
-          danger: 'var(--df-danger)',
-          success: 'var(--df-success)',
-          warning: 'var(--df-warning)',
+          line: 'var(--df-line-2)',
+          danger: token('danger'),
+          success: token('success'),
+          warning: token('warning'),
         },
-        // Alias legado: `dream-blue` continua funcionando nas páginas antigas.
+        // ponytail: alias legado de /d, /admin e /profile — some quando essas telas forem refeitas.
         dream: {
-          blue: 'var(--df-blue)',
+          blue: token('blue'),
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-outfit)', 'var(--font-inter)', 'sans-serif'],
-        roboto: ['var(--font-roboto)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-outfit)', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
-      borderRadius: {
-        xl: '0.75rem',
-        '2xl': '1rem',
-        '3xl': '1.5rem',
+      backgroundImage: {
+        'df-grad': 'var(--df-grad)',
       },
-      boxShadow: {
-        soft: '0 2px 12px rgba(10, 25, 41, 0.06), 0 1px 3px rgba(10, 25, 41, 0.04)',
-        elevated:
-          '0 10px 30px rgba(10, 25, 41, 0.08), 0 4px 10px rgba(10, 25, 41, 0.04)',
-        'df-glow': '0 0 0 4px rgba(0, 168, 232, 0.18)',
+      transitionTimingFunction: {
+        df: 'cubic-bezier(.22,1,.36,1)',
       },
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(4px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
-        },
-      },
-      animation: {
-        'fade-in': 'fade-in 200ms ease-out',
-        shimmer: 'shimmer 1.6s linear infinite',
+      letterSpacing: {
+        tag: '.14em',
       },
     },
   },

@@ -2,36 +2,44 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+/**
+ * Botao pilula do guide (.btn): o preenchimento sobe de baixo.
+ * No celular nao ha hover, entao o mesmo preenchimento sobe no toque (:active).
+ */
 const buttonStyles = cva(
   [
-    'inline-flex items-center justify-center gap-2',
-    'rounded-xl font-medium transition-all',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-    'disabled:opacity-50 disabled:cursor-not-allowed',
-    'active:scale-[0.98] active:transition-none',
-    'select-none',
+    'relative isolate inline-flex items-center justify-center gap-2 overflow-hidden',
+    'rounded-full border-[1.5px] font-semibold lowercase tracking-[-.01em] select-none',
+    'transition-colors duration-300 ease-df',
+    // preenchimento que sobe (::before)
+    'before:absolute before:inset-0 before:-z-10 before:translate-y-[101%] before:content-[""]',
+    'before:transition-transform before:duration-500 before:ease-df',
+    'hover:before:translate-y-0 active:before:translate-y-0 active:before:duration-150',
+    'disabled:cursor-not-allowed disabled:opacity-50 disabled:before:hidden',
   ].join(' '),
   {
     variants: {
       variant: {
+        // cheio: ink → azul (nav__cta do guide)
         primary:
-          'bg-df-blue text-white shadow-soft hover:bg-df-blue-dark focus-visible:ring-df-blue',
+          'border-df-ink bg-df-ink text-df-surface before:bg-df-blue hover:border-df-blue hover:text-white active:border-df-blue active:text-white',
+        // contorno: transparente → ink (.btn do guide)
         ghost:
-          'bg-transparent border border-df-border text-df-ink hover:bg-df-surface-2 focus-visible:ring-df-blue',
+          'border-df-ink text-df-ink before:bg-df-ink hover:text-df-surface active:text-df-surface',
         outline:
-          'bg-transparent border border-df-blue text-df-blue hover:bg-df-blue-soft focus-visible:ring-df-blue',
+          'border-df-blue text-df-blue before:bg-df-blue hover:text-white active:text-white',
         danger:
-          'border border-red-200 bg-white text-df-danger hover:bg-red-50 focus-visible:ring-red-300',
+          'border-df-danger text-df-danger before:bg-df-danger hover:text-white active:text-white',
         dangerSolid:
-          'bg-df-danger text-white hover:bg-red-700 focus-visible:ring-red-300',
+          'border-df-danger bg-df-danger text-white before:bg-df-ink hover:border-df-ink active:border-df-ink',
         subtle:
-          'bg-df-blue-soft text-df-blue hover:bg-sky-100 focus-visible:ring-df-blue',
+          'border-transparent bg-df-blue-soft text-df-blue before:bg-df-blue hover:text-white active:text-white',
       },
       size: {
-        sm: 'h-9 px-3 text-sm',
-        md: 'h-11 px-4 text-base',
-        lg: 'h-12 px-5 text-base',
-        icon: 'h-11 w-11',
+        sm: 'h-10 px-4 text-sm',
+        md: 'h-12 px-6 text-base',
+        lg: 'h-14 px-8 text-[17px]',
+        icon: 'size-12',
       },
       fullWidth: {
         true: 'w-full',
@@ -54,26 +62,22 @@ export interface ButtonProps
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    { className, variant, size, fullWidth, isLoading, children, disabled, ...props },
-    ref,
-  ) => {
-    return (
-      <button
-        ref={ref}
-        className={cn(buttonStyles({ variant, size, fullWidth }), className)}
-        disabled={disabled || isLoading}
-        {...props}
-      >
-        {isLoading && (
-          <span
-            aria-hidden
-            className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-          />
-        )}
-        {children}
-      </button>
-    );
-  },
+  ({ className, variant, size, fullWidth, isLoading, children, disabled, ...props }, ref) => (
+    <button
+      ref={ref}
+      className={cn(buttonStyles({ variant, size, fullWidth }), className)}
+      disabled={disabled || isLoading}
+      aria-busy={isLoading || undefined}
+      {...props}
+    >
+      {isLoading && (
+        <span
+          aria-hidden
+          className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+      )}
+      {children}
+    </button>
+  ),
 );
 Button.displayName = 'Button';

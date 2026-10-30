@@ -18,7 +18,7 @@ import { MapView } from '@/components/MapView';
 import { spreadLatLng } from '@/lib/map/utils';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import type { Socket } from 'socket.io-client';
+import type { Socket } from '@/lib/socket';
 
 const COLLECTED_STORAGE_PREFIX = 'dreamdriver_collected_';
 
@@ -566,7 +566,7 @@ export default function DriverPage() {
       )}
 
       {wsStatus !== 'CONNECTED' && hasActiveTrip && (
-        <p className="mb-3 text-amber-600">
+        <p className="mb-3 text-df-warning">
           Reconectando… ({wsStatus})
         </p>
       )}
@@ -636,7 +636,7 @@ export default function DriverPage() {
                   : '-'}
               </div>
               {tracking.lastError ? (
-                <div className="text-red-600">
+                <div className="text-df-danger">
                   <b>Erro:</b> {tracking.lastError}
                 </div>
               ) : null}
@@ -683,7 +683,7 @@ export default function DriverPage() {
               return (
                 <div
                   key={group.code}
-                  className={`rounded-lg border p-3 ${collected ? 'border-df-border bg-zinc-100/60' : 'border-df-border bg-df-surface-2/50'}`}
+                  className={`rounded-lg border p-3 ${collected ? 'border-df-border bg-df-surface-2' : 'border-df-border bg-df-surface-2/50'}`}
                 >
                   <div className="mb-2 flex items-baseline justify-between gap-2">
                     <span className="font-medium text-df-ink">
@@ -695,18 +695,18 @@ export default function DriverPage() {
                       </span>
                       {collected ? (
                         <>
-                          <span className="whitespace-nowrap rounded-full bg-emerald-600/20 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="whitespace-nowrap rounded-full bg-df-success/10 px-2 py-0.5 text-xs font-medium text-df-success">
                             Recolhido
                           </span>
                           {newCount > 0 && (
-                            <span className="whitespace-nowrap rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            <span className="whitespace-nowrap rounded-full bg-df-warning/10 px-2 py-0.5 text-xs font-medium text-df-warning">
                               +{newCount} novos
                             </span>
                           )}
                           <button
                             type="button"
                             onClick={() => handleDesfazer(group.code)}
-                            className="rounded border border-zinc-300 px-2 py-0.5 text-xs text-df-muted transition hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
+                            className="rounded border border-df-border px-2 py-0.5 text-xs text-df-muted transition hover:bg-df-surface-2 focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
                           >
                             Desfazer
                           </button>
@@ -715,7 +715,7 @@ export default function DriverPage() {
                         <button
                           type="button"
                           onClick={() => handleRecolher(group.code, group.count)}
-                          className="rounded border border-zinc-300 px-2 py-0.5 text-xs text-df-muted transition hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
+                          className="rounded border border-df-border px-2 py-0.5 text-xs text-df-muted transition hover:bg-df-surface-2 focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
                         >
                           Recolher
                         </button>
@@ -748,7 +748,7 @@ export default function DriverPage() {
       )}
 
       {error && (
-        <p className="mb-4 text-red-600" role="alert">
+        <p className="mb-4 text-df-danger" role="alert">
           {error}
         </p>
       )}

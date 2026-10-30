@@ -298,8 +298,9 @@ export function MapView({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl border border-df-border bg-df-surface shadow-soft h-[55vh] min-h-[360px] sm:h-[520px] ${className}`}
-      style={{ width: '100%', height: '100%' }}
+      // data-lenis-prevent: arrastar/zoom do mapa nao pode virar scroll da pagina
+      data-lenis-prevent
+      className={`relative h-[60svh] min-h-[340px] w-full overflow-hidden rounded-[22px] border border-df-border bg-df-surface sm:h-[520px] ${className}`}
     >
       <div
         ref={containerRef}
@@ -330,14 +331,14 @@ function MapHud({ lastVanUpdateAt }: { lastVanUpdateAt: number | null | undefine
     hudStatus === 'live' ? 'Ao vivo' : hudStatus === 'weak' ? 'Sinal fraco' : 'Sem sinal';
   const hudStatusColor =
     hudStatus === 'live'
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-df-success'
       : hudStatus === 'weak'
-        ? 'text-amber-600 dark:text-amber-400'
+        ? 'text-df-warning'
         : 'text-df-muted';
 
   return (
-    <div className="pointer-events-none absolute right-2 top-2 min-w-[140px] rounded-lg border border-df-border bg-df-surface/95 px-3 py-2 text-right shadow-soft backdrop-blur-sm">
-      <div className={`text-sm font-medium ${hudStatusColor}`}>{hudStatusText}</div>
+    <div className="pointer-events-none absolute right-3 top-3 z-[1000] min-w-[140px] rounded-2xl border border-df-border bg-[var(--df-nav-bg)] px-3.5 py-2 text-right backdrop-blur-md">
+      <div className={`text-sm font-semibold lowercase ${hudStatusColor}`}>{hudStatusText}</div>
       <div className="text-xs text-df-muted">
         {lastVanUpdateAt != null ? (
           <TimeAgo from={lastVanUpdateAt} prefix="Atualizado " />

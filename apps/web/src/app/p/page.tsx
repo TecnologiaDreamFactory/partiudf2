@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import {
   MapPin,
@@ -27,10 +26,10 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Ca
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TimeAgo } from '@/components/TimeAgo';
-import { VanLoader } from '@/components/VanLoader';
+import { VanLoader, SplashScreen } from '@/components/VanLoader';
 import { cn } from '@/lib/utils';
 import type { PassengerMarker, PickupPointMarker, VanPositionExtended } from '@/components/MapView';
-import type { Socket } from 'socket.io-client';
+import type { Socket } from '@/lib/socket';
 
 type TripUiState = 'LOADING' | 'NO_ACTIVE_TRIP' | 'ACTIVE_TRIP' | 'ERROR';
 
@@ -520,25 +519,8 @@ export default function PassengerPage() {
     </>
   );
 
-  // ---------------------------------------------------------------------------
-  // Splash overlay (fade in/out) — renderizado por baixo de tudo
-  // ---------------------------------------------------------------------------
-  const splashOverlay = (
-    <AnimatePresence>
-      {showSplash && (
-        <motion.div
-          key="splash"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-df-surface-2"
-        >
-          <VanLoader message="Preparando sua viagem…" />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  // Splash: sai subindo (GSAP) quando showSplash vira false.
+  const splashOverlay = <SplashScreen show={showSplash} message="Preparando sua viagem…" />;
 
   // ---------------------------------------------------------------------------
   // Erro de bootstrap (sem splash — mostra a tela de erro direto)
@@ -577,7 +559,6 @@ export default function PassengerPage() {
 
   // Enquanto o splash está visível, NÃO monta a AppShell nem o MapView.
   // A aplicação só "roda" quando showApp = true (auth ok + mínimo 5s passados).
-  // A AnimatePresence dentro do splashOverlay cuida do fade-out ao desmontar.
   if (!showApp) {
     return splashOverlay;
   }
@@ -591,7 +572,7 @@ export default function PassengerPage() {
       <AppShell title="Passageiro" badge={renderStatusBadge()} actions={headerActions}>
       {/* Reconectando banner */}
       {wsStatus !== 'CONNECTED' && ui === 'ACTIVE_TRIP' && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-df-warning/30 bg-df-warning/10 px-3 py-2 text-sm text-df-warning">
           <WifiOff className="size-4" />
           <span>Reconectando ao tempo real…</span>
         </div>
@@ -717,7 +698,7 @@ export default function PassengerPage() {
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-df-blue/40',
                         'disabled:opacity-60 disabled:cursor-not-allowed',
                         isCurrent
-                          ? 'border-df-blue bg-df-blue-soft text-df-blue shadow-df-glow'
+                          ? 'border-df-blue bg-df-blue-soft text-df-blue ring-4 ring-df-blue/15'
                           : 'border-df-border bg-df-surface text-df-ink hover:border-df-blue/40 hover:bg-df-blue-soft/40 active:scale-[0.99]',
                       )}
                     >

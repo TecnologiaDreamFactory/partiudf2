@@ -20,3 +20,9 @@ prompt.txt
 
 # Repositório git aninhado acidental (vazio)
 partiudfAutomado/
+
+# Prisma client gerado (prisma generate roda no build)
+apps/web/src/generated/
+
+# Supabase local
+supabase/.temp/
