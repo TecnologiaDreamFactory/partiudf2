@@ -173,7 +173,7 @@ export default function DriverPage() {
   const socketRef = useRef<Socket | null>(null);
   const [tracking, setTracking] = useState<TrackingState>({ running: false });
   const trackerRef = useRef<ReturnType<typeof createDriverTracker> | null>(null);
-  useWakeLock(tracking.running);
+  const screenAwake = useWakeLock(tracking.running);
 
   const [statusLoading, setStatusLoading] = useState(true);
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
@@ -635,6 +635,13 @@ export default function DriverPage() {
                   ? `${Math.round(tracking.lastAccuracy)}m`
                   : '-'}
               </div>
+              {tracking.running ? (
+                <div className={screenAwake ? 'text-df-muted' : 'text-df-warning'}>
+                  {screenAwake
+                    ? 'Tela sempre ligada. Não troque de app nem bloqueie o celular.'
+                    : 'Não deu para manter a tela ligada: desative o bloqueio automático do celular durante a viagem.'}
+                </div>
+              ) : null}
               {tracking.lastError ? (
                 <div className="text-df-danger">
                   <b>Erro:</b> {tracking.lastError}
