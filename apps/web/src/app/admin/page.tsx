@@ -27,6 +27,8 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 
 const ROLES = ['ADMIN', 'DRIVER', 'PASSENGER'] as const;
+// Criacao: so motorista e admin. RESERVA (desativada no MVP): passageiro nao tem mais conta.
+const CREATE_ROLES = ['DRIVER', 'ADMIN'] as const;
 
 export default function AdminPage() {
   const router = useRouter();
@@ -38,7 +40,7 @@ export default function AdminPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [createEmail, setCreateEmail] = useState('');
-  const [createRole, setCreateRole] = useState('PASSENGER');
+  const [createRole, setCreateRole] = useState('DRIVER');
   const [createName, setCreateName] = useState('');
   const [createAvatarUrl, setCreateAvatarUrl] = useState('');
   const [createPassword, setCreatePassword] = useState('');
@@ -129,7 +131,7 @@ export default function AdminPage() {
       setUsers((prev) => [user, ...prev]);
       setShowCreate(false);
       setCreateEmail('');
-      setCreateRole('PASSENGER');
+      setCreateRole('DRIVER');
       setCreateName('');
       setCreateAvatarUrl('');
       setCreatePassword('');
@@ -444,7 +446,7 @@ export default function AdminPage() {
                 onChange={(e) => setCreateRole(e.target.value)}
                 className="w-full rounded-xl border border-df-border px-3 py-2.5 text-df-ink focus:border-dream-blue focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
               >
-                {ROLES.map((r) => (
+                {CREATE_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

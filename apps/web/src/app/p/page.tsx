@@ -1,24 +1,33 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+/**
+ * Tela do passageiro (MVP): sem login, todos só acompanham a van em tempo real.
+ *
+ * RESERVA (check-in no ponto de embarque) desativada no MVP. O código ficou
+ * comentado nos blocos marcados com "RESERVA". Para religar também é preciso a
+ * sessão do passageiro (ensurePassengerSession + rota /auth/passenger-session);
+ * a versão completa desta tela está no commit ca4b940.
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
-  MapPin,
+  // MapPin, Users, // RESERVA
   Navigation,
   RefreshCw,
   Signal,
   Wifi,
   WifiOff,
   XCircle,
-  Users,
   Bus,
 } from 'lucide-react';
-import { getAuth, getToken, getUser, ensurePassengerSession, resetPassengerSession } from '@/lib/auth';
 import { getSocket, type WsStatus } from '@/lib/socket';
-import { apiFetch, fetchTripStatus, fetchTripSnapshot } from '@/lib/api';
-import { isPassengerCheckinEnabled } from '@/lib/env';
-import { maskDisplayName } from '@/lib/privacy';
-import { spreadLatLng } from '@/lib/map/utils';
+import { fetchTripStatus, fetchTripSnapshot } from '@/lib/api';
+// import { apiFetch } from '@/lib/api'; // RESERVA
+// import { getUser } from '@/lib/auth'; // RESERVA
+// import { maskDisplayName } from '@/lib/privacy'; // RESERVA
+// import { spreadLatLng } from '@/lib/map/utils'; // RESERVA
+// import { cn } from '@/lib/utils'; // RESERVA
 import { MapView } from '@/components/MapView';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/ui/Button';
@@ -27,12 +36,13 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TimeAgo } from '@/components/TimeAgo';
 import { VanLoader, SplashScreen } from '@/components/VanLoader';
-import { cn } from '@/lib/utils';
-import type { PassengerMarker, PickupPointMarker, VanPositionExtended } from '@/components/MapView';
+import type { VanPositionExtended } from '@/components/MapView';
+// import type { PassengerMarker, PickupPointMarker } from '@/components/MapView'; // RESERVA
 import type { Socket } from '@/lib/socket';
 
 type TripUiState = 'LOADING' | 'NO_ACTIVE_TRIP' | 'ACTIVE_TRIP' | 'ERROR';
 
+/* RESERVA (desativada no MVP)
 interface PickupPointOption {
   id: string;
   code: string;
@@ -122,48 +132,41 @@ function checkinsToPickupPoints(checkins: Checkin[]): PickupPointMarker[] {
   }
   return out;
 }
+RESERVA */
 
 export default function PassengerPage() {
-  const checkinUiEnabled = isPassengerCheckinEnabled();
-  const [authOk, setAuthOk] = useState<boolean | null>(null);
   // Splash com tempo mínimo: garante 5s do VanLoader antes de revelar a UI.
   const [splashDone, setSplashDone] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setSplashDone(true), 5000);
     return () => clearTimeout(t);
   }, []);
-  // Mostra o splash enquanto a sessão está carregando OU enquanto o mínimo
-  // de 5s ainda não decorreu (se autenticação for instantânea, segura o splash).
-  // Em caso de erro de bootstrap, NÃO mostra o splash — mostra a tela de erro.
-  const showSplash = authOk === null || (authOk === true && !splashDone);
-  // A aplicação só "roda" depois que o loader terminou: a AppShell, o MapView
-  // e os useEffects de polling/socket só são montados quando showApp = true.
-  const showApp = authOk === true && splashDone;
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  // A AppShell, o MapView e o polling/tempo real só montam depois do splash.
+  const showApp = splashDone;
   const [ui, setUi] = useState<TripUiState>('LOADING');
   const [tripId, setTripId] = useState<string | null>(null);
   const [wsStatus, setWsStatus] = useState<WsStatus>('DISCONNECTED');
   const [lastVanUpdateAt, setLastVanUpdateAt] = useState<number | null>(null);
   const [vanPosition, setVanPosition] = useState<VanPositionExtended | null>(null);
+  const [followVan, setFollowVan] = useState(true);
+  /* RESERVA (desativada no MVP)
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [passengerMarkers, setPassengerMarkers] = useState<PassengerMarker[]>([]);
   const [pickupPoints, setPickupPoints] = useState<PickupPointMarker[]>([]);
-  const [followVan, setFollowVan] = useState(true);
   const [focusUserId, setFocusUserId] = useState<string | null>(null);
   const [availablePickupPoints, setAvailablePickupPoints] = useState<PickupPointOption[]>([]);
   const [checkinLoading, setCheckinLoading] = useState<string | null>(null); // pickup code OR 'cancel'
+  const currentUserId = useMemo(() => getUser()?.id ?? null, []);
+  const myCheckin = useMemo(
+    () => (currentUserId ? checkins.find((c) => c.user.id === currentUserId) ?? null : null),
+    [checkins, currentUserId],
+  );
+  RESERVA */
   const socketRef = useRef<Socket | null>(null);
   const tripIdRef = useRef<string | null>(null);
   const uiRef = useRef<TripUiState>('LOADING');
   tripIdRef.current = tripId;
   uiRef.current = ui;
-
-  const currentUserId = useMemo(() => getUser()?.id ?? null, [authOk]);
-
-  const myCheckin = useMemo(
-    () => (currentUserId ? checkins.find((c) => c.user.id === currentUserId) ?? null : null),
-    [checkins, currentUserId],
-  );
 
   const clearVanMarker = useCallback(() => {
     setVanPosition(null);
@@ -178,9 +181,6 @@ export default function PassengerPage() {
       setUi('NO_ACTIVE_TRIP');
       setTripId(null);
       // Limpa apenas se ainda havia algo (evita novas refs vazias a cada poll).
-      setCheckins((prev) => (prev.length === 0 ? prev : []));
-      setPassengerMarkers((prev) => (prev.length === 0 ? prev : []));
-      setPickupPoints((prev) => (prev.length === 0 ? prev : []));
       setVanPosition((prev) => (prev === null ? prev : null));
       setLastVanUpdateAt((prev) => (prev === null ? prev : null));
       return;
@@ -189,81 +189,47 @@ export default function PassengerPage() {
     setTripId(res.trip!.id);
   }, []);
 
-  const bootstrapAndJoin = useCallback(
-    async (tid: string) => {
-      try {
-        const snapshot = await fetchTripSnapshot(tid);
-        const checkinsData = (snapshot.checkins as Checkin[]) ?? [];
-        setCheckins(checkinUiEnabled ? checkinsData : []);
-        if (snapshot.lastLocation) {
-          setVanPosition({
-            lat: snapshot.lastLocation.lat,
-            lng: snapshot.lastLocation.lng,
-            fromSnapshot: true,
-          });
-          setLastVanUpdateAt(snapshot.lastLocation.ts);
-        } else {
-          setVanPosition(null);
-          setLastVanUpdateAt(null);
-        }
-
-        const token = getToken();
-        if (!token) return;
-        const socket = getSocket(token);
-        socketRef.current = socket;
-        if (!socket.connected) socket.connect();
-        if (socket.connected) socket.emit('trip.join', { tripId: tid });
-      } catch {
-        setCheckins([]);
+  const bootstrapAndJoin = useCallback(async (tid: string) => {
+    try {
+      const snapshot = await fetchTripSnapshot(tid);
+      // setCheckins(snapshot.checkins as Checkin[]); // RESERVA
+      if (snapshot.lastLocation) {
+        setVanPosition({
+          lat: snapshot.lastLocation.lat,
+          lng: snapshot.lastLocation.lng,
+          fromSnapshot: true,
+        });
+        setLastVanUpdateAt(snapshot.lastLocation.ts);
+      } else {
+        setVanPosition(null);
+        setLastVanUpdateAt(null);
       }
-    },
-    [checkinUiEnabled],
-  );
 
-  useEffect(() => {
-    if (!checkinUiEnabled) {
-      setPassengerMarkers([]);
-      setPickupPoints([]);
-      return;
+      const socket = getSocket();
+      socketRef.current = socket;
+      if (!socket.connected) socket.connect();
+      if (socket.connected) socket.emit('trip.join', { tripId: tid });
+    } catch {
+      // o polling tenta de novo
     }
-    setPassengerMarkers(checkinsToMarkersWithSpread(checkins));
-    setPickupPoints(checkinsToPickupPoints(checkins));
-  }, [checkins, checkinUiEnabled]);
-
-  useEffect(() => {
-    // /p é a tela do passageiro sem login obrigatório.
-    // Se já houver sessão de PASSENGER no storage, usa direto.
-    // Se for ADMIN/DRIVER (de uma sessão anterior no mesmo browser),
-    // ignora e cria uma sessão de convidado para mostrar a UI do passageiro.
-    const auth = getAuth();
-    if (auth?.token && auth?.user?.role === 'PASSENGER') {
-      setAuthOk(true);
-      setBootstrapError(null);
-      return;
-    }
-    ensurePassengerSession()
-      .then(() => {
-        setAuthOk(true);
-        setBootstrapError(null);
-      })
-      .catch((e) => {
-        setAuthOk(false);
-        setBootstrapError(e instanceof Error ? e.message : 'Erro ao iniciar sessão');
-      });
   }, []);
 
+  /* RESERVA (desativada no MVP)
   useEffect(() => {
-    if (!showApp || !checkinUiEnabled) return;
-    apiFetch<PickupPointOption[]>('/checkins/pickup-points')
-      .then((pts) => setAvailablePickupPoints(pts))
-      .catch(() => {});
-  }, [showApp, checkinUiEnabled]);
+    setPassengerMarkers(checkinsToMarkersWithSpread(checkins));
+    setPickupPoints(checkinsToPickupPoints(checkins));
+  }, [checkins]);
 
   useEffect(() => {
     if (!showApp) return;
-    const token = getToken();
-    const user = getUser();
-    if (!token || !user) return;
+    apiFetch<PickupPointOption[]>('/checkins/pickup-points')
+      .then((pts) => setAvailablePickupPoints(pts))
+      .catch(() => {});
+  }, [showApp]);
+  RESERVA */
+
+  useEffect(() => {
+    if (!showApp) return;
     let alive = true;
     const run = async () => {
       try {
@@ -284,11 +250,9 @@ export default function PassengerPage() {
 
   useEffect(() => {
     if (!showApp || ui !== 'ACTIVE_TRIP' || !tripId) return;
-    const token = getToken();
-    if (!token) return;
     void bootstrapAndJoin(tripId);
 
-    const socket = getSocket(token);
+    const socket = getSocket();
     const tid = tripId;
     const onConnect = () => {
       setWsStatus('CONNECTED');
@@ -311,9 +275,7 @@ export default function PassengerPage() {
 
   useEffect(() => {
     if (!showApp || ui !== 'ACTIVE_TRIP' || !tripId) return;
-    const token = getToken();
-    if (!token) return;
-    const socket = getSocket(token);
+    const socket = getSocket();
 
     const onJoined = (payload: {
       tripId?: string;
@@ -345,15 +307,14 @@ export default function PassengerPage() {
         heading: data.heading ?? undefined,
       });
     };
+    /* RESERVA (desativada no MVP)
     const onCheckinCreated = (checkin: Checkin) => {
-      if (!checkinUiEnabled) return;
       setCheckins((prev) => {
         const filtered = prev.filter((c) => c.id !== checkin.id);
         return [...filtered, checkin];
       });
     };
     const onCheckinCanceled = (payload: { checkinId?: string; userId?: string }) => {
-      if (!checkinUiEnabled) return;
       if (payload.checkinId) {
         setCheckins((prev) => prev.filter((c) => c.id !== payload.checkinId));
       }
@@ -361,13 +322,12 @@ export default function PassengerPage() {
         setCheckins((prev) => prev.filter((c) => c.user.id !== payload.userId));
       }
     };
+    RESERVA */
     const onTripEnded = () => {
       setUi('NO_ACTIVE_TRIP');
       setTripId(null);
       clearVanMarker();
-      setCheckins([]);
-      setPassengerMarkers([]);
-      setPickupPoints([]);
+      // setCheckins([]); setPassengerMarkers([]); setPickupPoints([]); // RESERVA
       toast.info('A viagem foi finalizada pelo motorista.');
     };
     const onTripStarted = (payload: { tripId: string }) => {
@@ -386,8 +346,8 @@ export default function PassengerPage() {
 
     socket.on('trip.joined', onJoined);
     socket.on('trip.location', onLocation);
-    socket.on('checkin.created', onCheckinCreated);
-    socket.on('checkin.canceled', onCheckinCanceled);
+    // socket.on('checkin.created', onCheckinCreated); // RESERVA
+    // socket.on('checkin.canceled', onCheckinCanceled); // RESERVA
     socket.on('trip.ended', onTripEnded);
     socket.on('trip.started', onTripStarted);
     socket.on('realtime.error', onRealtimeError);
@@ -395,16 +355,17 @@ export default function PassengerPage() {
     return () => {
       socket.off('trip.joined', onJoined);
       socket.off('trip.location', onLocation);
-      socket.off('checkin.created', onCheckinCreated);
-      socket.off('checkin.canceled', onCheckinCanceled);
+      // socket.off('checkin.created', onCheckinCreated); // RESERVA
+      // socket.off('checkin.canceled', onCheckinCanceled); // RESERVA
       socket.off('trip.ended', onTripEnded);
       socket.off('trip.started', onTripStarted);
       socket.off('realtime.error', onRealtimeError);
     };
-  }, [showApp, ui, tripId, bootstrapAndJoin, clearVanMarker, checkinUiEnabled]);
+  }, [showApp, ui, tripId, bootstrapAndJoin, clearVanMarker]);
 
   const handleRetry = () => syncStatus();
 
+  /* RESERVA (desativada no MVP)
   const getCurrentPosition = (): Promise<{ latitude: number; longitude: number }> =>
     new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -482,6 +443,7 @@ export default function PassengerPage() {
       setCheckinLoading(null);
     }
   };
+  RESERVA */
 
   // ---------------------------------------------------------------------------
   // Render helpers
@@ -503,62 +465,17 @@ export default function PassengerPage() {
   };
 
   const headerActions = (
-    <>
-      <span className="hidden text-xs text-df-muted sm:inline">
-        {ui === 'ACTIVE_TRIP' && lastVanUpdateAt != null && (
-          <TimeAgo from={lastVanUpdateAt} prefix="Atualizado " />
-        )}
-      </span>
-      <button
-        type="button"
-        onClick={() => resetPassengerSession()}
-        className="rounded-lg border border-df-border bg-df-surface px-3 py-1.5 text-xs font-medium text-df-muted transition hover:bg-df-surface-2 hover:text-df-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-df-blue/30"
-      >
-        Nova sessão
-      </button>
-    </>
+    <span className="hidden text-xs text-df-muted sm:inline">
+      {ui === 'ACTIVE_TRIP' && lastVanUpdateAt != null && (
+        <TimeAgo from={lastVanUpdateAt} prefix="Atualizado " />
+      )}
+    </span>
   );
 
-  // Splash: sai subindo (GSAP) quando showSplash vira false.
-  const splashOverlay = <SplashScreen show={showSplash} message="Preparando sua viagem…" />;
-
-  // ---------------------------------------------------------------------------
-  // Erro de bootstrap (sem splash — mostra a tela de erro direto)
-  // ---------------------------------------------------------------------------
-  if (authOk === false || bootstrapError) {
-    return (
-      <AppShell title="Passageiro">
-        <Card>
-          <EmptyState
-            icon={<XCircle className="size-7" />}
-            title="Não conseguimos iniciar sua sessão"
-            description={bootstrapError ?? 'Erro desconhecido'}
-            action={
-              <Button
-                type="button"
-                onClick={() => {
-                  setBootstrapError(null);
-                  setAuthOk(null);
-                  ensurePassengerSession()
-                    .then(() => setAuthOk(true))
-                    .catch((e) =>
-                      setBootstrapError(
-                        e instanceof Error ? e.message : 'Erro ao iniciar sessão',
-                      ),
-                    );
-                }}
-              >
-                <RefreshCw className="size-4" /> Tentar novamente
-              </Button>
-            }
-          />
-        </Card>
-      </AppShell>
-    );
-  }
+  // Splash: sai subindo (GSAP) quando o mínimo de 5s passa.
+  const splashOverlay = <SplashScreen show={!showApp} message="Preparando sua viagem…" />;
 
   // Enquanto o splash está visível, NÃO monta a AppShell nem o MapView.
-  // A aplicação só "roda" quando showApp = true (auth ok + mínimo 5s passados).
   if (!showApp) {
     return splashOverlay;
   }
@@ -607,11 +524,7 @@ export default function PassengerPage() {
           <EmptyState
             icon={<Bus className="size-7" />}
             title="Nenhuma viagem em andamento"
-            description={
-              checkinUiEnabled
-                ? 'O check-in vai aparecer aqui assim que o motorista iniciar a viagem.'
-                : 'Quando a van iniciar uma viagem, você verá o trajeto no mapa abaixo.'
-            }
+            description="Quando a van iniciar uma viagem, você verá o trajeto no mapa abaixo."
             action={
               <Button variant="ghost" onClick={handleRetry}>
                 <RefreshCw className="size-4" /> Atualizar
@@ -665,94 +578,91 @@ export default function PassengerPage() {
             </label>
           </Card>
 
-          {/* Check-in selector */}
-          {checkinUiEnabled && (
-            <Card>
-              <CardHeader>
-                <div className="min-w-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="size-4 text-df-blue" />
-                    Seu ponto de embarque
-                  </CardTitle>
-                  <CardDescription>
-                    {myCheckin
-                      ? `Você está em ${myCheckin.pickupPoint.name}.`
-                      : 'Toque no ponto onde você vai embarcar para fazer check-in.'}
-                  </CardDescription>
-                </div>
-              </CardHeader>
+          {/* RESERVA (desativada no MVP): seletor de ponto de embarque e passageiros por ponto
+          <Card>
+            <CardHeader>
+              <div className="min-w-0">
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="size-4 text-df-blue" />
+                  Seu ponto de embarque
+                </CardTitle>
+                <CardDescription>
+                  {myCheckin
+                    ? `Você está em ${myCheckin.pickupPoint.name}.`
+                    : 'Toque no ponto onde você vai embarcar para fazer check-in.'}
+                </CardDescription>
+              </div>
+            </CardHeader>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {availablePickupPoints.map((pt) => {
-                  const isCurrent = myCheckin?.pickupPoint.code === pt.code;
-                  const isBusy = checkinLoading === pt.code;
-                  return (
-                    <button
-                      key={pt.code}
-                      type="button"
-                      onClick={() => handleCheckin(pt.code)}
-                      disabled={!tripId || checkinLoading !== null}
-                      aria-pressed={isCurrent}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {availablePickupPoints.map((pt) => {
+                const isCurrent = myCheckin?.pickupPoint.code === pt.code;
+                const isBusy = checkinLoading === pt.code;
+                return (
+                  <button
+                    key={pt.code}
+                    type="button"
+                    onClick={() => handleCheckin(pt.code)}
+                    disabled={!tripId || checkinLoading !== null}
+                    aria-pressed={isCurrent}
+                    className={cn(
+                      'group relative flex min-h-[3.25rem] items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-df-blue/40',
+                      'disabled:opacity-60 disabled:cursor-not-allowed',
+                      isCurrent
+                        ? 'border-df-blue bg-df-blue-soft text-df-blue ring-4 ring-df-blue/15'
+                        : 'border-df-border bg-df-surface text-df-ink hover:border-df-blue/40 hover:bg-df-blue-soft/40 active:scale-[0.99]',
+                    )}
+                  >
+                    <span
                       className={cn(
-                        'group relative flex min-h-[3.25rem] items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-df-blue/40',
-                        'disabled:opacity-60 disabled:cursor-not-allowed',
-                        isCurrent
-                          ? 'border-df-blue bg-df-blue-soft text-df-blue ring-4 ring-df-blue/15'
-                          : 'border-df-border bg-df-surface text-df-ink hover:border-df-blue/40 hover:bg-df-blue-soft/40 active:scale-[0.99]',
+                        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                        isCurrent ? 'bg-df-blue text-white' : 'bg-df-blue-soft text-df-blue',
                       )}
                     >
+                      <MapPin className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{pt.name}</span>
+                      {pt.address && (
+                        <span className="block truncate text-xs text-df-muted">
+                          {pt.address}
+                        </span>
+                      )}
+                    </span>
+                    {isBusy && (
                       <span
-                        className={cn(
-                          'flex size-9 shrink-0 items-center justify-center rounded-lg',
-                          isCurrent ? 'bg-df-blue text-white' : 'bg-df-blue-soft text-df-blue',
-                        )}
-                      >
-                        <MapPin className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{pt.name}</span>
-                        {pt.address && (
-                          <span className="block truncate text-xs text-df-muted">
-                            {pt.address}
-                          </span>
-                        )}
-                      </span>
-                      {isBusy && (
-                        <span
-                          aria-hidden
-                          className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                        />
-                      )}
-                      {isCurrent && !isBusy && (
-                        <Badge variant="brand" className="shrink-0">
-                          atual
-                        </Badge>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                        aria-hidden
+                        className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                      />
+                    )}
+                    {isCurrent && !isBusy && (
+                      <Badge variant="brand" className="shrink-0">
+                        atual
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-              {myCheckin && (
-                <Button
-                  type="button"
-                  variant="danger"
-                  fullWidth
-                  className="mt-3"
-                  onClick={handleCancelCheckin}
-                  isLoading={checkinLoading === 'cancel'}
-                  disabled={checkinLoading !== null}
-                >
-                  <XCircle className="size-4" />
-                  Cancelar meu check-in
-                </Button>
-              )}
-            </Card>
-          )}
+            {myCheckin && (
+              <Button
+                type="button"
+                variant="danger"
+                fullWidth
+                className="mt-3"
+                onClick={handleCancelCheckin}
+                isLoading={checkinLoading === 'cancel'}
+                disabled={checkinLoading !== null}
+              >
+                <XCircle className="size-4" />
+                Cancelar meu check-in
+              </Button>
+            )}
+          </Card>
 
-          {/* Passengers grouped by pickup point */}
-          {checkinUiEnabled && tripId && checkins.length > 0 && (
+          {tripId && checkins.length > 0 && (
             <Card>
               <CardHeader>
                 <div>
@@ -811,19 +721,17 @@ export default function PassengerPage() {
               </div>
             </Card>
           )}
+          RESERVA */}
         </div>
       )}
 
-      {/* Map: full bleed on mobile, rounded on desktop */}
+      {/* Mapa. RESERVA: passengerMarkers, pickupPoints e focusUserId saíram junto com a reserva. */}
       <Card className="mt-4 overflow-hidden p-0">
         <MapView
           vanPosition={vanPosition}
-          passengerMarkers={checkinUiEnabled ? passengerMarkers : []}
-          pickupPoints={checkinUiEnabled ? pickupPoints : []}
           followVan={followVan}
           tripId={tripId}
           lastVanUpdateAt={lastVanUpdateAt}
-          focusUserId={checkinUiEnabled ? focusUserId : null}
         />
       </Card>
       </AppShell>

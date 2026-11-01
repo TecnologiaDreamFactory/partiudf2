@@ -149,9 +149,9 @@ export const tripRoutes: Route[] = [
   ],
   [
     'GET',
+    // Publico: o passageiro so acompanha a van, sem login.
     '/trips/status',
-    async (req) => {
-      requireUser(req, ['DRIVER', 'PASSENGER']);
+    async () => {
       const trip = await activeTrip();
       return { hasActiveTrip: !!trip, trip: trip ? tripSummary(trip) : null };
     },
@@ -160,16 +160,20 @@ export const tripRoutes: Route[] = [
     'GET',
     '/trips/:tripId/snapshot',
     async (req, { tripId }) => {
-      const user = requireUser(req, ['DRIVER', 'PASSENGER']);
       const trip = await prisma.trip.findUnique({ where: { id: tripId } });
       if (!trip) throw notFound('Viagem não encontrada');
-      if (user.role === 'DRIVER' && trip.driverId !== user.userId) {
-        throw forbidden('Você não é o motorista desta viagem');
+      // Publico (posicao da van). Check-ins tem nomes: so para o motorista da viagem
+      // ou passageiro logado (reserva, desativada no MVP).
+      let user: ReturnType<typeof requireUser> | null = null;
+      try {
+        user = requireUser(req);
+      } catch {
+        // sem login: so a posicao
       }
-      const checkins = await prisma.checkin.findMany({
-        where: { tripId, status: 'ACTIVE' },
-        include: checkinInclude,
-      });
+      const seesCheckins = user?.role === 'PASSENGER' || (user?.role === 'DRIVER' && trip.driverId === user.userId);
+      const checkins = seesCheckins
+        ? await prisma.checkin.findMany({ where: { tripId, status: 'ACTIVE' }, include: checkinInclude })
+        : [];
       return { trip: tripSummary(trip), checkins: checkins.map(toEnriched), lastLocation: lastLocation(trip) };
     },
   ],

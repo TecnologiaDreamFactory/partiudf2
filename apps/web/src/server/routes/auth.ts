@@ -1,10 +1,10 @@
 import 'server-only';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'node:crypto';
+// import { randomBytes } from 'node:crypto'; // RESERVA (desativada no MVP)
 import { prisma } from '@/server/db';
 import {
   assertNumericPassword,
-  badRequest,
+  // badRequest, // RESERVA (desativada no MVP)
   readBody,
   requireUser,
   signToken,
@@ -15,7 +15,8 @@ import {
 import type { Route } from '@/server/router';
 
 const SALT_ROUNDS = 10;
-const GUEST_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// RESERVA (desativada no MVP)
+// const GUEST_UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DbUser = { id: string; email: string; role: Role; name: string | null; avatarUrl: string | null };
 
@@ -56,27 +57,30 @@ export const authRoutes: Route[] = [
       return { token: signToken({ userId: user.id, role: user.role }, expiresIn), user: publicUser(user) };
     },
   ],
-  [
-    // Sessao anonima de passageiro (sem tela de login): um User PASSENGER por navegador.
-    'POST',
-    '/auth/passenger-session',
-    async (req) => {
-      const gid = str((await readBody(req)).guestId);
-      if (!GUEST_UUID_RE.test(gid)) throw badRequest('guestId inválido (use um UUID v4)');
-      const email = `guest_${gid}@passenger.local`;
-      const user =
-        (await prisma.user.findUnique({ where: { email } })) ??
-        (await prisma.user.create({
-          data: {
-            email,
-            password: await hashPassword(randomBytes(32).toString('hex')),
-            role: 'PASSENGER',
-            name: 'Passageiro',
-          },
-        }));
-      return { token: signToken({ userId: user.id, role: user.role }, '365d'), user: publicUser(user) };
-    },
-  ],
+  // RESERVA (desativada no MVP): o passageiro so acompanha a van, sem sessao.
+  // Para religar a reserva, descomente esta rota (e os imports randomBytes/badRequest
+  // e GUEST_UUID_RE) junto com os blocos "RESERVA" de app/p/page.tsx.
+  // [
+  //   // Sessao anonima de passageiro (sem tela de login): um User PASSENGER por navegador.
+  //   'POST',
+  //   '/auth/passenger-session',
+  //   async (req) => {
+  //     const gid = str((await readBody(req)).guestId);
+  //     if (!GUEST_UUID_RE.test(gid)) throw badRequest('guestId inválido (use um UUID v4)');
+  //     const email = `guest_${gid}@passenger.local`;
+  //     const user =
+  //       (await prisma.user.findUnique({ where: { email } })) ??
+  //       (await prisma.user.create({
+  //         data: {
+  //           email,
+  //           password: await hashPassword(randomBytes(32).toString('hex')),
+  //           role: 'PASSENGER',
+  //           name: 'Passageiro',
+  //         },
+  //       }));
+  //     return { token: signToken({ userId: user.id, role: user.role }, '365d'), user: publicUser(user) };
+  //   },
+  // ],
   [
     'GET',
     '/auth/me',

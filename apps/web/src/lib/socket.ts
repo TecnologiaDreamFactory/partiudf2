@@ -121,9 +121,9 @@ export type Socket = RealtimeSocket;
 
 let socket: RealtimeSocket | null = null;
 
-export function getSocket(token: string): RealtimeSocket {
+/** `token` so importa para o motorista (envio de posicao); o passageiro so ouve, sem login. */
+export function getSocket(token = ''): RealtimeSocket {
   if (typeof window === 'undefined') throw new Error('getSocket must be called in the browser');
-  if (!token) throw new Error('token is required to create socket connection');
   if (!socket) socket = new RealtimeSocket(token);
   else socket.auth = { token };
   socket.connect();
