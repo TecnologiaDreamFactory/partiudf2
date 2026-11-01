@@ -1,5 +1,6 @@
 import 'server-only';
 import jwt from 'jsonwebtoken';
+import { prisma } from '@/server/db';
 
 export type Role = 'ADMIN' | 'DRIVER' | 'PASSENGER';
 
@@ -47,6 +48,18 @@ export function requireUser(req: Request, roles?: Role[]): AuthedUser {
   if (!payload.sub || !payload.role) throw unauthorized('Sessão inválida');
   if (roles && !roles.includes(payload.role)) throw forbidden();
   return { userId: payload.sub, role: payload.role };
+}
+
+/** requireUser + confere no banco se a conta ainda existe e esta ativa (o JWT vale 30 dias). */
+export async function requireActiveUser(req: Request, roles?: Role[]): Promise<AuthedUser> {
+  const user = requireUser(req, roles);
+  const row = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { active: true, mustChangePassword: true },
+  });
+  if (!row?.active) throw forbidden('Usuário inativo');
+  if (row.mustChangePassword) throw forbidden('Troque a senha provisória antes de continuar');
+  return user;
 }
 
 /** Corpo JSON como objeto (nunca null/array), para validar campo a campo. */

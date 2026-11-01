@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   apiFetch,
+  fetchAuthMe,
   fetchTripStatus,
   fetchTripSnapshot,
 } from '@/lib/api';
@@ -161,6 +162,8 @@ export default function DriverPage() {
   const router = useRouter();
   const [authOk, setAuthOk] = useState<boolean | null>(null);
   const [tripId, setTripId] = useState<string | null>(null);
+  // Nome do motorista logado ("Boa viagem, ..."). Vem do banco: o admin pode ter mudado.
+  const [myName, setMyName] = useState<string | null>(null);
   const [vanPosition, setVanPosition] = useState<VanPositionExtended | null>(null);
   const [passengerMarkers, setPassengerMarkers] = useState<PassengerMarker[]>(
     [],
@@ -370,6 +373,17 @@ export default function DriverPage() {
 
   useEffect(() => {
     if (authOk !== true) return;
+    fetchAuthMe()
+      .then((me) => {
+        // senha provisória ainda não trocada: volta ao login, que pede a nova senha
+        if (me.mustChangePassword) return logout();
+        setMyName(me.name?.trim() || null);
+      })
+      .catch(() => {});
+  }, [authOk]);
+
+  useEffect(() => {
+    if (authOk !== true) return;
     const token = getToken();
     const user = getUser();
     if (!token || !user) return;
@@ -508,6 +522,8 @@ export default function DriverPage() {
       await apiFetch(`/trips/${tripId}/end`, { method: 'POST' });
       stopRealTracking();
       clearTripAndListeners();
+      // celular compartilhado: fim de viagem tira o motorista da conta
+      await logout();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao encerrar viagem');
     } finally {
@@ -583,6 +599,16 @@ export default function DriverPage() {
       {!statusLoading && hasActiveTrip && tripId && (
         <>
           <Card className="mb-4">
+            {/* <p> e não <h2>: os títulos do guide são minúsculos e o nome perderia as maiúsculas */}
+            <p className="mb-3 text-2xl font-semibold leading-tight text-df-ink">
+              Boa viagem
+              {myName && (
+                <>
+                  , <span className="text-grad">{myName}</span>
+                </>
+              )}
+              !
+            </p>
             <p className="mb-1 text-dream-blue font-medium">Viagem ativa</p>
             <p className="mb-3 text-df-ink">
               <strong>ID da viagem:</strong> {tripId}
@@ -594,7 +620,7 @@ export default function DriverPage() {
                 onChange={(e) => setFollowVan(e.target.checked)}
                 className="rounded border-df-border text-dream-blue focus:ring-dream-blue"
               />
-              Seguir van
+              Mapa acompanha minha posição
             </label>
           </Card>
 

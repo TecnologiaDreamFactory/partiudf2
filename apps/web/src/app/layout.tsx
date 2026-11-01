@@ -41,7 +41,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={outfit.variable}>
-      <body className="font-sans antialiased">
+      {/* suppressHydrationWarning: extensoes (ex.: ColorZilla) injetam atributos no body.
+          Vale so para os atributos do proprio body, nao para os filhos. */}
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <MotionProvider>{children}</MotionProvider>
         <Toaster
           position="top-center"

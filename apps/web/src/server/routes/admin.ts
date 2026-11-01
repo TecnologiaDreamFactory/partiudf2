@@ -8,7 +8,7 @@ import {
   notFound,
   num,
   readBody,
-  requireUser,
+  requireActiveUser,
   str,
   type Role,
 } from '@/server/http';
@@ -18,8 +18,8 @@ const VALID_ROLES: Role[] = ['ADMIN', 'DRIVER', 'PASSENGER'];
 const isRole = (v: unknown): v is Role => VALID_ROLES.includes(v as Role);
 const roleError = () => badRequest(`Função deve ser uma de: ${VALID_ROLES.join(', ')}`);
 
-const userSelect = { id: true, email: true, role: true, name: true, avatarUrl: true, createdAt: true } as const;
-type UserRow = { id: string; email: string; role: Role; name: string | null; avatarUrl: string | null; createdAt: Date };
+const userSelect = { id: true, email: true, role: true, name: true, avatarUrl: true, active: true, createdAt: true } as const;
+type UserRow = { id: string; email: string; role: Role; name: string | null; avatarUrl: string | null; active: boolean; createdAt: Date };
 const toUserDto = (u: UserRow) => ({ ...u, createdAt: u.createdAt.toISOString() });
 
 type PickupRow = { id: string; code: string; name: string; lat: number; lng: number; address: string | null; createdAt: Date };
@@ -33,23 +33,17 @@ const toPickupDto = (p: PickupRow) => ({
   createdAt: p.createdAt.toISOString(),
 });
 
-/** Sessoes anonimas de passageiro (logins guest). */
-const GUEST_LOGIN_WHERE = {
-  role: 'PASSENGER' as const,
-  email: { startsWith: 'guest_', endsWith: '@passenger.local' },
-};
-
-const admin = (req: Request) => requireUser(req, ['ADMIN']);
+const admin = (req: Request) => requireActiveUser(req, ['ADMIN']);
 
 export const adminRoutes: Route[] = [
   [
     'GET',
     '/admin/users',
     async (req) => {
-      admin(req);
+      await admin(req);
       const role = new URL(req.url).searchParams.get('role');
       const users = await prisma.user.findMany({
-        where: isRole(role) ? { role } : undefined,
+        where: { deletedAt: null, ...(isRole(role) && { role }) },
         select: userSelect,
         orderBy: { createdAt: 'desc' },
       });
@@ -60,14 +54,19 @@ export const adminRoutes: Route[] = [
     'POST',
     '/admin/users',
     async (req) => {
-      admin(req);
+      await admin(req);
       const body = await readBody(req);
       const email = str(body.email);
       if (!email) throw badRequest('E-mail é obrigatório');
       if (!str(body.password)) throw badRequest('Senha é obrigatória');
       const password = assertNumericPassword(body.password);
       if (!isRole(body.role)) throw roleError();
-      if (await prisma.user.findUnique({ where: { email } })) throw conflict('E-mail já está em uso');
+      const taken = await prisma.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } });
+      if (taken && !taken.deletedAt) throw conflict('E-mail já está em uso');
+      // e-mail de um excluido volta a ficar livre: o antigo ganha sufixo (so aparece no relatorio)
+      if (taken) {
+        await prisma.user.update({ where: { id: taken.id }, data: { email: `${email}#excluido-${taken.id}` } });
+      }
       const user = await prisma.user.create({
         data: {
           email,
@@ -75,6 +74,8 @@ export const adminRoutes: Route[] = [
           role: body.role,
           name: str(body.name) || null,
           avatarUrl: str(body.avatarUrl) || null,
+          // motorista recebe senha provisoria e cria a dele no primeiro login
+          mustChangePassword: body.role === 'DRIVER',
         },
         select: userSelect,
       });
@@ -85,10 +86,30 @@ export const adminRoutes: Route[] = [
     'PATCH',
     '/admin/users/:id',
     async (req, { id }) => {
-      admin(req);
+      const me = await admin(req);
       const body = await readBody(req);
-      if (!(await prisma.user.findUnique({ where: { id } }))) throw notFound('Usuário não encontrado');
-      const data: { role?: Role; name?: string | null; avatarUrl?: string | null; password?: string } = {};
+      const target = await prisma.user.findUnique({ where: { id }, select: { role: true, deletedAt: true } });
+      if (!target || target.deletedAt) throw notFound('Usuário não encontrado');
+      const data: {
+        email?: string;
+        role?: Role;
+        name?: string | null;
+        avatarUrl?: string | null;
+        password?: string;
+        active?: boolean;
+        mustChangePassword?: boolean;
+      } = {};
+      if (body.email !== undefined) {
+        const email = str(body.email);
+        if (!email.includes('@')) throw badRequest('E-mail inválido');
+        const owner = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+        if (owner && owner.id !== id) throw conflict('E-mail já está em uso');
+        data.email = email;
+      }
+      if (typeof body.active === 'boolean') {
+        if (!body.active && me.userId === id) throw badRequest('Você não pode inativar a própria conta');
+        data.active = body.active;
+      }
       if (body.role !== undefined) {
         if (!isRole(body.role)) throw roleError();
         data.role = body.role;
@@ -97,59 +118,74 @@ export const adminRoutes: Route[] = [
       if (body.avatarUrl !== undefined) data.avatarUrl = str(body.avatarUrl) || null;
       if (body.password !== undefined && body.password !== '') {
         data.password = await hashPassword(assertNumericPassword(body.password));
+        // senha redefinida pelo admin vira provisoria para o motorista
+        if ((data.role ?? target.role) === 'DRIVER') data.mustChangePassword = true;
       }
       return toUserDto(await prisma.user.update({ where: { id }, data, select: userSelect }));
     },
   ],
   [
+    // Excluir = sair do sistema de vez, sem apagar a linha: as viagens do motorista
+    // ficam no relatorio com o nome dele. So inativos (a tela so oferece la).
     'DELETE',
     '/admin/users/:id',
     async (req, { id }) => {
-      const me = admin(req);
+      const me = await admin(req);
       if (me.userId === id) throw badRequest('Você não pode excluir a própria conta');
-      if (!(await prisma.user.findUnique({ where: { id } }))) throw notFound('Usuário não encontrado');
-      // Viagens do motorista saem primeiro (check-ins delas em cascata), depois o usuario.
-      await prisma.$transaction([
-        prisma.trip.deleteMany({ where: { driverId: id } }),
-        prisma.user.delete({ where: { id } }),
-      ]);
+      const user = await prisma.user.findUnique({ where: { id }, select: { active: true, deletedAt: true } });
+      if (!user || user.deletedAt) throw notFound('Usuário não encontrado');
+      if (user.active) throw badRequest('Inative o usuário antes de excluir');
+      await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
       return { ok: true };
     },
   ],
   [
+    // Relatorio de viagens: ?from=&to= (ISO) filtram pelo inicio da viagem.
     'GET',
-    '/admin/passenger-logins',
+    '/admin/reports/trips',
     async (req) => {
-      admin(req);
-      const users = await prisma.user.findMany({
-        where: GUEST_LOGIN_WHERE,
-        select: { id: true, email: true, name: true, createdAt: true, _count: { select: { checkins: true } } },
-        orderBy: { createdAt: 'desc' },
-      });
-      return users.map((u) => ({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        createdAt: u.createdAt.toISOString(),
-        checkinsCount: u._count.checkins,
-      }));
-    },
-  ],
-  [
-    'DELETE',
-    '/admin/passenger-logins',
-    async (req) => {
-      admin(req);
-      // check-ins associados saem em cascata
-      const result = await prisma.user.deleteMany({ where: GUEST_LOGIN_WHERE });
-      return { ok: true, deleted: result.count };
+      await admin(req);
+      const q = new URL(req.url).searchParams;
+      const from = new Date(q.get('from') ?? '');
+      const to = new Date(q.get('to') ?? '');
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) throw badRequest('Período inválido');
+      const where = { startedAt: { gte: from, lt: to } };
+      const [trips, people] = await Promise.all([
+        prisma.trip.findMany({
+          where,
+          orderBy: { startedAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            endedAt: true,
+            driver: { select: { name: true, email: true } },
+            _count: { select: { viewers: true } },
+          },
+        }),
+        // pessoas diferentes no periodo (o mesmo aparelho em varias viagens conta 1)
+        prisma.tripViewer.groupBy({ by: ['visitorId'], where: { trip: where } }),
+      ]);
+      return {
+        uniqueViewers: people.length,
+        trips: trips.map((t) => ({
+          id: t.id,
+          status: t.status,
+          startedAt: t.startedAt.toISOString(),
+          endedAt: t.endedAt?.toISOString() ?? null,
+          durationMinutes: t.endedAt ? Math.round((t.endedAt.getTime() - t.startedAt.getTime()) / 60000) : null,
+          driverName: t.driver.name,
+          driverEmail: t.driver.email,
+          viewers: t._count.viewers,
+        })),
+      };
     },
   ],
   [
     'GET',
     '/admin/pickup-points',
     async (req) => {
-      admin(req);
+      await admin(req);
       return (await prisma.pickupPoint.findMany({ orderBy: { code: 'asc' } })).map(toPickupDto);
     },
   ],
@@ -157,7 +193,7 @@ export const adminRoutes: Route[] = [
     'POST',
     '/admin/pickup-points',
     async (req) => {
-      admin(req);
+      await admin(req);
       const body = await readBody(req);
       const code = str(body.code).toUpperCase();
       const name = str(body.name);
@@ -177,7 +213,7 @@ export const adminRoutes: Route[] = [
     'PATCH',
     '/admin/pickup-points/:id',
     async (req, { id }) => {
-      admin(req);
+      await admin(req);
       const body = await readBody(req);
       const existing = await prisma.pickupPoint.findUnique({ where: { id } });
       if (!existing) throw notFound('Ponto de embarque não encontrado');
@@ -201,7 +237,7 @@ export const adminRoutes: Route[] = [
     'DELETE',
     '/admin/pickup-points/:id',
     async (req, { id }) => {
-      admin(req);
+      await admin(req);
       const existing = await prisma.pickupPoint.findUnique({
         where: { id },
         include: { _count: { select: { checkins: true } } },

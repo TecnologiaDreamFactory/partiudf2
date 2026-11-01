@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { vanPinIcon, createPassengerIcon, createPickupPointIcon } from '@/lib/map/icons';
 import { chooseInitialCenter, safeFollow } from '@/lib/map/utils';
 import { MARINA_CENTER, DEFAULT_ZOOM } from '@/lib/map/constants';
@@ -35,6 +36,8 @@ export interface PickupPointMarker {
 }
 
 export type MapHudStatus = 'live' | 'weak' | 'off';
+
+const MAP_THEME_KEY = 'partiudf:map-theme';
 
 interface MapViewProps {
   vanPosition?: VanPositionExtended | MapPosition | null;
@@ -71,6 +74,16 @@ export function MapView({
   const [mapReady, setMapReady] = useState(false);
   const [userGeo, setUserGeo] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const appliedBestReasonRef = useRef<'van' | 'user' | null>(null);
+  // Tema só do mapa: escuro por padrão; a escolha fica salva no navegador.
+  const [mapLight, setMapLight] = useState(false);
+  useEffect(() => {
+    setMapLight(localStorage.getItem(MAP_THEME_KEY) === 'light');
+  }, []);
+  const toggleMapTheme = () => {
+    const next = !mapLight;
+    setMapLight(next);
+    localStorage.setItem(MAP_THEME_KEY, next ? 'light' : 'dark');
+  };
   const mapRef = useRef<{
     map: import('leaflet').Map;
     vanMarker: import('leaflet').Marker;
@@ -149,7 +162,14 @@ export function MapView({
         mapRef.current = null;
       }
     };
-  }, [vanTooltip]);
+    // vanTooltip fica fora: trocar o texto do balão não pode recriar o mapa (efeito abaixo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Texto do balão da van (nome do motorista) sem recriar o mapa.
+  useEffect(() => {
+    if (mapReady) mapRef.current?.vanMarker.setTooltipContent(vanTooltip);
+  }, [mapReady, vanTooltip]);
 
   // Apply smart initial center when we get lastLocation or userGeo (upgrade from Marina)
   useEffect(() => {
@@ -300,7 +320,7 @@ export function MapView({
     <div
       // data-lenis-prevent: arrastar/zoom do mapa nao pode virar scroll da pagina
       data-lenis-prevent
-      className={`relative h-[60svh] min-h-[340px] w-full overflow-hidden rounded-[22px] border border-df-border bg-df-surface sm:h-[520px] ${className}`}
+      className={`relative h-[60svh] min-h-[340px] w-full overflow-hidden rounded-[22px] border border-df-border bg-df-surface sm:h-[520px] ${mapLight ? 'map-light' : ''} ${className}`}
     >
       <div
         ref={containerRef}
@@ -309,6 +329,16 @@ export function MapView({
         aria-label="Mapa"
       />
       <MapHud lastVanUpdateAt={lastVanUpdateAt} />
+      <button
+        type="button"
+        onClick={toggleMapTheme}
+        aria-pressed={mapLight}
+        aria-label={mapLight ? 'Usar mapa escuro' : 'Usar mapa claro'}
+        title={mapLight ? 'Mapa escuro' : 'Mapa claro'}
+        className="absolute bottom-3 left-3 z-[1000] flex size-11 items-center justify-center rounded-full border border-df-border bg-[var(--df-nav-bg)] text-df-ink backdrop-blur-md transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-df-blue/50"
+      >
+        {mapLight ? <Moon className="size-5" /> : <Sun className="size-5" />}
+      </button>
     </div>
   );
 }

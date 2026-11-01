@@ -1,6 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type FormEvent,
+} from 'react';
+import { Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,8 +16,6 @@ import {
   updateAdminUser,
   deleteAdminUser,
   type AdminUser,
-  fetchAdminPassengerLogins,
-  deleteAdminPassengerLogins,
   fetchAdminPickupPoints,
   createAdminPickupPoint,
   updateAdminPickupPoint,
@@ -25,6 +30,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { TripReport } from './TripReport';
 
 const ROLES = ['ADMIN', 'DRIVER', 'PASSENGER'] as const;
 // Criacao: so motorista e admin. RESERVA (desativada no MVP): passageiro nao tem mais conta.
@@ -47,15 +53,13 @@ export default function AdminPage() {
   const [createSaving, setCreateSaving] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState('');
   const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editSaving, setEditSaving] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-
-  const [loginsReportLoading, setLoginsReportLoading] = useState(false);
-  const [loginsDeleting, setLoginsDeleting] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
 
   const [pickupPoints, setPickupPoints] = useState<AdminPickupPoint[]>([]);
   const [ppLoading, setPpLoading] = useState(true);
@@ -108,7 +112,9 @@ export default function AdminPage() {
     setPpLoading(true);
     fetchAdminPickupPoints()
       .then(setPickupPoints)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erro ao carregar pontos'))
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : 'Erro ao carregar pontos')
+      )
       .finally(() => setPpLoading(false));
   }, [authOk]);
 
@@ -144,6 +150,7 @@ export default function AdminPage() {
 
   const startEdit = (u: AdminUser) => {
     setEditingId(u.id);
+    setEditEmail(u.email);
     setEditName(u.name ?? '');
     setEditRole(u.role);
     setEditAvatarUrl(u.avatarUrl ?? '');
@@ -159,6 +166,7 @@ export default function AdminPage() {
     setEditSaving(true);
     try {
       const updated = await updateAdminUser(id, {
+        email: editEmail.trim(),
         name: editName.trim() || undefined,
         role: editRole,
         avatarUrl: editAvatarUrl.trim() || undefined,
@@ -173,83 +181,46 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteUser = async (u: AdminUser) => {
+  const inactiveDialogRef = useRef<HTMLDialogElement>(null);
+  const activeUsers = users.filter((u) => u.active);
+  const inactiveUsers = users.filter((u) => !u.active);
+
+  const handleToggleActive = async (u: AdminUser) => {
     if (
+      u.active &&
       !window.confirm(
-        `Tem certeza que deseja excluir "${u.name || u.email}"? Esta ação não pode ser desfeita.`,
+        `Inativar "${u.name || u.email}"? A pessoa não consegue mais entrar nem iniciar viagens. Ele vai para a área Inativos, de onde dá para reativar.`
       )
     )
       return;
     setError('');
-    setDeletingUserId(u.id);
+    setTogglingUserId(u.id);
+    try {
+      const updated = await updateAdminUser(u.id, { active: !u.active });
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao alterar status');
+    } finally {
+      setTogglingUserId(null);
+    }
+  };
+
+  const handleDeleteUser = async (u: AdminUser) => {
+    if (
+      !window.confirm(
+        `Excluir "${u.name || u.email}"? Some do sistema e não dá para desfazer. As viagens dele continuam no relatório.`
+      )
+    )
+      return;
+    setError('');
+    setTogglingUserId(u.id);
     try {
       await deleteAdminUser(u.id);
       setUsers((prev) => prev.filter((x) => x.id !== u.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao excluir usuário');
     } finally {
-      setDeletingUserId(null);
-    }
-  };
-
-  const handleGenerateLoginsReport = async () => {
-    setError('');
-    setLoginsReportLoading(true);
-    try {
-      const logins = await fetchAdminPassengerLogins();
-      if (logins.length === 0) {
-        window.alert('Nenhum login de passageiro encontrado.');
-        return;
-      }
-      const header = ['ID', 'Email', 'Nome', 'Check-ins', 'Data de criacao'];
-      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-      const rows = logins.map((l) =>
-        [
-          l.id,
-          l.email,
-          l.name ?? '',
-          String(l.checkinsCount),
-          new Date(l.createdAt).toLocaleString('pt-BR'),
-        ]
-          .map(escape)
-          .join(','),
-      );
-      const csv = [header.map(escape).join(','), ...rows].join('\r\n');
-      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `logins-passageiros-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao gerar relatório');
-    } finally {
-      setLoginsReportLoading(false);
-    }
-  };
-
-  const handleDeleteLogins = async () => {
-    if (
-      !window.confirm(
-        'Tem certeza que deseja excluir TODOS os logins de passageiros? Os check-ins associados também serão removidos. Esta ação não pode ser desfeita.',
-      )
-    )
-      return;
-    setError('');
-    setLoginsDeleting(true);
-    try {
-      const { deleted } = await deleteAdminPassengerLogins();
-      window.alert(`${deleted} login(s) de passageiro excluído(s).`);
-      // Atualiza a lista de usuários caso esteja exibindo passageiros.
-      const refreshed = await fetchAdminUsers(roleFilter || undefined);
-      setUsers(refreshed);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao excluir logins');
-    } finally {
-      setLoginsDeleting(false);
+      setTogglingUserId(null);
     }
   };
 
@@ -271,7 +242,9 @@ export default function AdminPage() {
         lng,
         address: ppAddress.trim() || undefined,
       });
-      setPickupPoints((prev) => [item, ...prev].sort((a, b) => a.code.localeCompare(b.code)));
+      setPickupPoints((prev) =>
+        [item, ...prev].sort((a, b) => a.code.localeCompare(b.code))
+      );
       setShowCreatePp(false);
       setPpCode('');
       setPpName('');
@@ -312,7 +285,9 @@ export default function AdminPage() {
         address: ppEditAddress.trim() || null,
       });
       setPickupPoints((prev) =>
-        prev.map((p) => (p.id === id ? updated : p)).sort((a, b) => a.code.localeCompare(b.code)),
+        prev
+          .map((p) => (p.id === id ? updated : p))
+          .sort((a, b) => a.code.localeCompare(b.code))
       );
       setPpEditingId(null);
     } catch (e) {
@@ -323,7 +298,10 @@ export default function AdminPage() {
   };
 
   const handleDeletePp = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este ponto de embarque?')) return;
+    if (
+      !window.confirm('Tem certeza que deseja excluir este ponto de embarque?')
+    )
+      return;
     setError('');
     setPpDeletingId(id);
     try {
@@ -376,7 +354,10 @@ export default function AdminPage() {
       <Card className="mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <label htmlFor="roleFilter" className="mb-1 block text-sm font-medium text-df-ink">
+            <label
+              htmlFor="roleFilter"
+              className="mb-1 block text-sm font-medium text-df-ink"
+            >
               Filtrar por role
             </label>
             <select
@@ -399,33 +380,9 @@ export default function AdminPage() {
             </Button>
           </div>
         </div>
-
-        <hr className="my-4 border-df-border" />
-        <div>
-          <p className="mb-2 text-sm font-medium text-df-ink">
-            Logins de passageiros (sessões anônimas)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleGenerateLoginsReport}
-              disabled={loginsReportLoading}
-            >
-              {loginsReportLoading ? 'Gerando…' : 'Gerar relatório (CSV)'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleDeleteLogins}
-              disabled={loginsDeleting}
-              className="text-df-danger hover:bg-df-danger/10 hover:text-df-danger"
-            >
-              {loginsDeleting ? 'Excluindo…' : 'Excluir logins de passageiros'}
-            </Button>
-          </div>
-        </div>
       </Card>
+
+      <TripReport />
 
       {showCreate && (
         <Card className="mb-6">
@@ -440,7 +397,9 @@ export default function AdminPage() {
               required
             />
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-df-ink">Role</label>
+              <label className="mb-1.5 block text-sm font-medium text-df-ink">
+                Role
+              </label>
               <select
                 value={createRole}
                 onChange={(e) => setCreateRole(e.target.value)}
@@ -469,7 +428,11 @@ export default function AdminPage() {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   value={createPassword}
-                  onChange={(e) => setCreatePassword(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  onChange={(e) =>
+                    setCreatePassword(
+                      e.target.value.replace(/\D/g, '').slice(0, 8)
+                    )
+                  }
                   placeholder="1234"
                   required
                   className="min-w-0 flex-1 rounded-xl border border-df-border px-3 py-2.5 text-df-ink focus:border-dream-blue focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
@@ -526,10 +489,19 @@ export default function AdminPage() {
       )}
 
       <Card>
-        <h2 className="mb-4 font-semibold text-df-ink">Lista de usuários</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-df-ink">Lista de usuários</h2>
+          <button
+            type="button"
+            onClick={() => inactiveDialogRef.current?.showModal()}
+            className="min-h-11 text-sm text-df-muted underline-offset-4 hover:text-df-ink hover:underline"
+          >
+            Inativos ({inactiveUsers.length})
+          </button>
+        </div>
         {loading ? (
           <p className="text-df-muted">Carregando…</p>
-        ) : users.length === 0 ? (
+        ) : activeUsers.length === 0 ? (
           <p className="text-df-muted">Nenhum usuário encontrado.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -544,7 +516,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
+                {activeUsers.map((u) => (
                   <tr key={u.id} className="border-b border-df-border">
                     <td className="py-3 pr-4">
                       {u.avatarUrl ? (
@@ -553,7 +525,8 @@ export default function AdminPage() {
                           alt=""
                           className="h-10 w-10 rounded-full border border-df-border object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).style.display =
+                              'none';
                           }}
                         />
                       ) : (
@@ -562,13 +535,29 @@ export default function AdminPage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 pr-4 font-medium">{u.email}</td>
+                    <td className="py-3 pr-4 font-medium">
+                      {editingId === u.id ? (
+                        <input
+                          type="email"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          placeholder="E-mail"
+                          aria-label="E-mail"
+                          autoComplete="off"
+                          className="w-full min-w-[180px] rounded-lg border border-df-border px-2 py-1 text-df-ink"
+                        />
+                      ) : (
+                        u.email
+                      )}
+                    </td>
                     <td className="py-3 pr-4">
                       {editingId === u.id ? (
                         <input
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Nome"
+                          aria-label="Nome"
                           className="w-full max-w-[140px] rounded-lg border border-df-border px-2 py-1 text-df-ink"
                         />
                       ) : (
@@ -589,8 +578,10 @@ export default function AdminPage() {
                           ))}
                         </select>
                       ) : (
-                        <span className="rounded bg-df-surface-2 px-2 py-0.5 text-df-ink">
-                          {u.role}
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          <span className="rounded bg-df-surface-2 px-2 py-0.5 text-df-ink">
+                            {u.role}
+                          </span>
                         </span>
                       )}
                     </td>
@@ -608,7 +599,11 @@ export default function AdminPage() {
                                 pattern="[0-9]*"
                                 value={editPassword}
                                 onChange={(e) =>
-                                  setEditPassword(e.target.value.replace(/\D/g, '').slice(0, 8))
+                                  setEditPassword(
+                                    e.target.value
+                                      .replace(/\D/g, '')
+                                      .slice(0, 8)
+                                  )
                                 }
                                 placeholder="Deixe vazio para manter"
                                 className="min-w-0 flex-1 rounded-lg border border-df-border px-2 py-1 text-df-ink"
@@ -616,7 +611,9 @@ export default function AdminPage() {
                               <Button
                                 type="button"
                                 variant="ghost"
-                                onClick={() => setEditPassword(generateNumericPassword(8))}
+                                onClick={() =>
+                                  setEditPassword(generateNumericPassword(8))
+                                }
                               >
                                 Gerar senha
                               </Button>
@@ -643,7 +640,8 @@ export default function AdminPage() {
                               alt="Preview"
                               className="h-10 w-10 rounded-full border border-df-border object-cover"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).style.display =
+                                  'none';
                               }}
                             />
                           )}
@@ -680,11 +678,10 @@ export default function AdminPage() {
                           <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => handleDeleteUser(u)}
-                            disabled={deletingUserId === u.id}
-                            className="text-df-danger hover:bg-df-danger/10 hover:text-df-danger"
+                            onClick={() => handleToggleActive(u)}
+                            disabled={togglingUserId === u.id}
                           >
-                            {deletingUserId === u.id ? 'Excluindo…' : 'Excluir'}
+                            {togglingUserId === u.id ? 'Salvando…' : 'Inativar'}
                           </Button>
                         </div>
                       )}
@@ -697,8 +694,85 @@ export default function AdminPage() {
         )}
       </Card>
 
+      {/* Inativos: não entram nem dirigem; ficam aqui (no lugar de excluir) para reativar. */}
+      <dialog
+        ref={inactiveDialogRef}
+        onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
+        className="m-auto w-[min(32rem,calc(100%-2.5rem))] rounded-[22px] border border-df-border bg-df-surface p-0 text-df-ink backdrop:bg-black/60"
+      >
+        <div
+          className="max-h-[80svh] overflow-y-auto p-5 sm:p-6"
+          data-lenis-prevent
+        >
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h2 className="font-semibold text-df-ink">Inativos</h2>
+            <button
+              type="button"
+              onClick={() => inactiveDialogRef.current?.close()}
+              aria-label="Fechar"
+              className="-mr-2 flex size-11 items-center justify-center rounded-full text-df-muted hover:text-df-ink"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+          <p className="mb-4 text-sm text-df-muted">
+            Não conseguem entrar nem iniciar viagens. As viagens deles continuam
+            no relatório.
+          </p>
+          {error && (
+            <p className="mb-4 text-sm text-df-danger" role="alert">
+              {error}
+            </p>
+          )}
+          {inactiveUsers.length === 0 ? (
+            <p className="text-df-muted">Nenhum usuário inativo.</p>
+          ) : (
+            <ul className="divide-y divide-df-border">
+              {inactiveUsers.map((u) => (
+                <li
+                  key={u.id}
+                  className="flex items-center justify-between gap-3 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-df-ink">
+                      {u.name || u.email}
+                    </p>
+                    <p className="truncate text-sm text-df-muted">
+                      {u.name ? `${u.email} · ` : ''}
+                      {u.role}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    fullWidth={false}
+                    onClick={() => handleToggleActive(u)}
+                    disabled={togglingUserId === u.id}
+                  >
+                    {togglingUserId === u.id ? 'Salvando…' : 'Reativar'}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUser(u)}
+                    disabled={togglingUserId === u.id}
+                    aria-label={`Excluir ${u.name || u.email}`}
+                    title="Excluir"
+                    className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-df-danger hover:bg-df-danger/10 disabled:opacity-50"
+                  >
+                    <Trash2 className="size-5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </dialog>
+
       <hr className="my-8 border-df-border" />
-      <h2 className="mb-4 text-xl font-semibold text-df-ink">Pontos de embarque</h2>
+      <h2 className="mb-4 text-xl font-semibold text-df-ink">
+        Pontos de embarque
+      </h2>
       <Card className="mb-6">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-df-muted">
@@ -710,13 +784,18 @@ export default function AdminPage() {
         </div>
 
         {showCreatePp && (
-          <form onSubmit={handleCreatePp} className="mb-6 space-y-4 rounded-lg border border-df-border bg-df-surface-2/50 p-4">
+          <form
+            onSubmit={handleCreatePp}
+            className="mb-6 space-y-4 rounded-lg border border-df-border bg-df-surface-2/50 p-4"
+          >
             <h3 className="font-medium text-df-ink">Criar ponto de embarque</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
                 label="Código (único, ex: METRO_A)"
                 value={ppCode}
-                onChange={(e) => setPpCode(e.target.value.toUpperCase().replace(/\s/g, '_'))}
+                onChange={(e) =>
+                  setPpCode(e.target.value.toUpperCase().replace(/\s/g, '_'))
+                }
                 placeholder="METRO_CINELANDIA_A"
                 required
               />
@@ -758,7 +837,11 @@ export default function AdminPage() {
               <Button type="submit" disabled={ppSaving}>
                 {ppSaving ? 'Criando…' : 'Criar'}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setShowCreatePp(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowCreatePp(false)}
+              >
                 Cancelar
               </Button>
             </div>
@@ -776,8 +859,12 @@ export default function AdminPage() {
                 <tr className="border-b border-df-border">
                   <th className="py-3 pr-4 font-medium text-df-ink">Código</th>
                   <th className="py-3 pr-4 font-medium text-df-ink">Nome</th>
-                  <th className="py-3 pr-4 font-medium text-df-ink">Lat / Lng</th>
-                  <th className="py-3 pr-4 font-medium text-df-ink">Endereço</th>
+                  <th className="py-3 pr-4 font-medium text-df-ink">
+                    Lat / Lng
+                  </th>
+                  <th className="py-3 pr-4 font-medium text-df-ink">
+                    Endereço
+                  </th>
                   <th className="py-3 font-medium text-df-ink">Ações</th>
                 </tr>
               </thead>
@@ -789,7 +876,11 @@ export default function AdminPage() {
                         <input
                           type="text"
                           value={ppEditCode}
-                          onChange={(e) => setPpEditCode(e.target.value.toUpperCase().replace(/\s/g, '_'))}
+                          onChange={(e) =>
+                            setPpEditCode(
+                              e.target.value.toUpperCase().replace(/\s/g, '_')
+                            )
+                          }
                           className="w-full max-w-[160px] rounded-lg border border-df-border px-2 py-1 text-df-ink"
                         />
                       ) : (

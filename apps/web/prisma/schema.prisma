@@ -21,6 +21,12 @@ model User {
   role      UserRole
   name      String?
   avatarUrl String?
+  /// Inativo nao entra nem dirige; as viagens dele ficam no relatorio (no lugar de excluir).
+  active    Boolean   @default(true)
+  /// Motorista criado/com senha redefinida pelo admin troca a senha no proximo login.
+  mustChangePassword Boolean @default(false)
+  /// Excluido pelo admin: some do sistema, mas as viagens dele ficam no relatorio.
+  deletedAt DateTime?
   createdAt DateTime  @default(now())
   trips     Trip[]
   checkins  Checkin[]
@@ -69,6 +75,7 @@ model Trip {
   endedAt   DateTime?
   driver    User       @relation(fields: [driverId], references: [id])
   checkins  Checkin[]
+  viewers   TripViewer[]
 
   // Ultima posicao da van. Antes ficava na memoria do servidor Nest;
   // no serverless (Vercel) a memoria nao sobrevive entre requisicoes.
@@ -80,4 +87,16 @@ model Trip {
   lastLocationAt DateTime?
 
   @@index([status, startedAt])
+}
+
+/// Quem acompanhou a viagem no /p. Passageiro nao tem login: visitorId e um UUID
+/// aleatorio guardado no navegador (um por aparelho), sem dado pessoal.
+model TripViewer {
+  tripId      String
+  visitorId   String   @db.Uuid
+  firstSeenAt DateTime @default(now())
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, visitorId])
+  @@index([visitorId])
 }

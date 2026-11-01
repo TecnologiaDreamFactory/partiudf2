@@ -53,6 +53,8 @@ export interface TripStatusResponse {
     id: string;
     startedAt: string;
     driverId: string;
+    /** nome cadastrado do motorista (null se não tiver) */
+    driverName: string | null;
     status: string;
   } | null;
 }
@@ -98,6 +100,8 @@ export interface AuthMeResponse {
   role: string;
   name?: string | null;
   avatarUrl?: string | null;
+  /** senha provisória (definida pelo admin): motorista troca antes de dirigir */
+  mustChangePassword?: boolean;
 }
 
 /** GET /auth/me */
@@ -149,6 +153,8 @@ export interface AdminUser {
   role: string;
   name: string | null;
   avatarUrl: string | null;
+  /** inativo não entra nem dirige */
+  active: boolean;
   createdAt: string;
 }
 
@@ -175,7 +181,7 @@ export async function createAdminUser(body: {
 /** PATCH /admin/users/:id */
 export async function updateAdminUser(
   id: string,
-  body: { role?: string; name?: string; avatarUrl?: string; password?: string },
+  body: { email?: string; role?: string; name?: string; avatarUrl?: string; password?: string; active?: boolean },
 ): Promise<AdminUser> {
   return apiFetch<AdminUser>(`/admin/users/${id}`, {
     method: 'PATCH',
@@ -183,30 +189,41 @@ export async function updateAdminUser(
   });
 }
 
-/** DELETE /admin/users/:id */
+/** DELETE /admin/users/:id — só inativos; as viagens continuam no relatório. */
 export async function deleteAdminUser(id: string): Promise<{ ok: boolean }> {
-  return apiFetch<{ ok: boolean }>(`/admin/users/${id}`, {
-    method: 'DELETE',
-  });
+  return apiFetch<{ ok: boolean }>(`/admin/users/${id}`, { method: 'DELETE' });
 }
 
-export interface AdminPassengerLogin {
+export interface TripReportRow {
   id: string;
-  email: string;
-  name: string | null;
-  createdAt: string;
-  checkinsCount: number;
+  status: 'ACTIVE' | 'ENDED';
+  startedAt: string;
+  endedAt: string | null;
+  /** null enquanto a viagem está em andamento */
+  durationMinutes: number | null;
+  driverName: string | null;
+  driverEmail: string;
+  /** aparelhos que acompanharam a viagem no /p */
+  viewers: number;
 }
 
-/** GET /admin/passenger-logins */
-export async function fetchAdminPassengerLogins(): Promise<AdminPassengerLogin[]> {
-  return apiFetch<AdminPassengerLogin[]>('/admin/passenger-logins');
+export interface TripReport {
+  /** pessoas (aparelhos) diferentes no período */
+  uniqueViewers: number;
+  trips: TripReportRow[];
 }
 
-/** DELETE /admin/passenger-logins */
-export async function deleteAdminPassengerLogins(): Promise<{ ok: boolean; deleted: number }> {
-  return apiFetch<{ ok: boolean; deleted: number }>('/admin/passenger-logins', {
-    method: 'DELETE',
+/** GET /admin/reports/trips — viagens iniciadas em [from, to) */
+export async function fetchTripReport(from: Date, to: Date): Promise<TripReport> {
+  const q = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return apiFetch<TripReport>(`/admin/reports/trips?${q}`);
+}
+
+/** POST /trips/:id/view — público: este aparelho acompanhou a viagem. */
+export async function registerTripView(tripId: string, visitorId: string): Promise<void> {
+  await apiFetch(`/trips/${encodeURIComponent(tripId)}/view`, {
+    method: 'POST',
+    body: JSON.stringify({ visitorId }),
   });
 }
 

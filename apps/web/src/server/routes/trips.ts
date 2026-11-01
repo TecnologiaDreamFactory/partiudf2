@@ -1,15 +1,29 @@
 import 'server-only';
 import { prisma } from '@/server/db';
 import { broadcast } from '@/server/realtime';
-import { badRequest, forbidden, HttpError, notFound, num, readBody, requireUser } from '@/server/http';
+import {
+  badRequest,
+  forbidden,
+  HttpError,
+  notFound,
+  num,
+  readBody,
+  requireActiveUser,
+  requireUser,
+  str,
+} from '@/server/http';
 import { toEnriched, checkinInclude } from '@/server/routes/checkins';
 import type { Route } from '@/server/router';
 
 /** Limite do Nest: no maximo 1 posicao a cada 500ms por viagem. */
 const MIN_LOCATION_INTERVAL_MS = 500;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Nome do motorista vai no status publico: o /p mostra no balao da van.
+const withDriverName = { driver: { select: { name: true } } } as const;
 
 const activeTrip = () =>
-  prisma.trip.findFirst({ where: { status: 'ACTIVE' }, orderBy: { startedAt: 'desc' } });
+  prisma.trip.findFirst({ where: { status: 'ACTIVE' }, orderBy: { startedAt: 'desc' }, include: withDriverName });
 
 type TripRow = NonNullable<Awaited<ReturnType<typeof activeTrip>>>;
 
@@ -18,6 +32,7 @@ const tripSummary = (t: TripRow) => ({
   status: t.status,
   startedAt: t.startedAt,
   driverId: t.driverId,
+  driverName: t.driver.name,
 });
 
 function lastLocation(t: TripRow) {
@@ -37,14 +52,16 @@ export const tripRoutes: Route[] = [
     'POST',
     '/trips/start',
     async (req) => {
-      const { userId } = requireUser(req, ['DRIVER']);
+      const { userId } = await requireActiveUser(req, ['DRIVER']);
       const trip = await prisma.trip.create({
         data: { driverId: userId, status: 'ACTIVE', startedAt: new Date() },
+        include: withDriverName,
       });
       await broadcast('trips', 'trip.started', {
         tripId: trip.id,
         startedAt: trip.startedAt.toISOString(),
         driverId: trip.driverId,
+        driverName: trip.driver.name,
       });
       return { tripId: trip.id };
     },
@@ -89,10 +106,11 @@ export const tripRoutes: Route[] = [
       if (lat === undefined || lng === undefined || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
         throw badRequest('Dados inválidos: lat e lng são obrigatórios');
       }
-      const trip = await prisma.trip.findUnique({ where: { id } });
+      const trip = await prisma.trip.findUnique({ where: { id }, include: { driver: { select: { active: true } } } });
       if (!trip) throw notFound('Viagem não encontrada');
       if (trip.status !== 'ACTIVE') throw forbidden('Viagem não está ativa');
       if (trip.driverId !== userId) throw forbidden('Você não é o motorista desta viagem');
+      if (!trip.driver.active) throw forbidden('Usuário inativo');
 
       const now = Date.now();
       if (trip.lastLocationAt && now - trip.lastLocationAt.getTime() < MIN_LOCATION_INTERVAL_MS) {
@@ -123,6 +141,20 @@ export const tripRoutes: Route[] = [
         ts: num(body.ts) ?? now,
         serverTs: new Date(now).toISOString(),
       });
+      return { ok: true };
+    },
+  ],
+  [
+    // Publico: o /p avisa "este aparelho acompanhou a viagem" (para o relatorio do admin).
+    // ponytail: qualquer um pode inflar a contagem com UUIDs aleatorios; rate limit por IP se importar.
+    'POST',
+    '/trips/:id/view',
+    async (req, { id }) => {
+      const visitorId = str((await readBody(req)).visitorId);
+      if (!UUID_RE.test(visitorId)) throw badRequest('visitorId inválido');
+      const trip = await prisma.trip.findUnique({ where: { id }, select: { status: true } });
+      if (!trip || trip.status !== 'ACTIVE') throw notFound('Viagem não encontrada');
+      await prisma.tripViewer.createMany({ data: [{ tripId: id, visitorId }], skipDuplicates: true });
       return { ok: true };
     },
   ],
@@ -160,7 +192,7 @@ export const tripRoutes: Route[] = [
     'GET',
     '/trips/:tripId/snapshot',
     async (req, { tripId }) => {
-      const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+      const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: withDriverName });
       if (!trip) throw notFound('Viagem não encontrada');
       // Publico (posicao da van). Check-ins tem nomes: so para o motorista da viagem
       // ou passageiro logado (reserva, desativada no MVP).
