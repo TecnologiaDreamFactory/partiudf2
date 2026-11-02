@@ -28,7 +28,8 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(), payment=()' },
-  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+  // só em produção: no dev o HSTS prenderia o localhost em https por 2 anos
+  ...(isDev ? [] : [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' }]),
 ];
 
 const nextConfig: NextConfig = {

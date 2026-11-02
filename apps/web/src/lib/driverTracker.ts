@@ -80,6 +80,7 @@ export function createDriverTracker(opts: {
         state.lastLat = latitude;
         state.lastLng = longitude;
         state.lastAccuracy = accuracy;
+        state.lastError = undefined;
 
         // Envia sempre (independente de accuracy) para que o passageiro veja o marker.
         // Accuracy é usado apenas no MapView para decidir follow/panTo.
@@ -118,7 +119,8 @@ export function createDriverTracker(opts: {
       {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 10000,
+        // ponytail: sem timeout. Parado (ou no notebook, que só tem Wi-Fi/IP) não chega posição nova
+        // e o watch dispararia "timeout" à toa; ele continua esperando sozinho.
       },
     );
   }

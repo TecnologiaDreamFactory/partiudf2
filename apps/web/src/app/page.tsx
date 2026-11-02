@@ -274,6 +274,23 @@ export default function PassengerPage() {
     };
   }, [showApp, syncStatus]);
 
+  // Início de viagem: escuta sempre, inclusive com "nenhuma viagem" na tela
+  // (senão só a consulta de 20s perceberia). Sem toast: o nome fica fixo no cartão.
+  useEffect(() => {
+    if (!showApp) return;
+    const socket = getSocket();
+    const onTripStarted = (payload: { tripId: string; driverName?: string | null }) => {
+      if (!payload.tripId) return;
+      setTripId(payload.tripId);
+      setDriverName(payload.driverName ?? null);
+      setUi('ACTIVE_TRIP');
+    };
+    socket.on('trip.started', onTripStarted);
+    return () => {
+      socket.off('trip.started', onTripStarted);
+    };
+  }, [showApp]);
+
   useEffect(() => {
     if (!showApp || ui !== 'ACTIVE_TRIP' || !tripId) return;
     void bootstrapAndJoin(tripId);
@@ -349,21 +366,14 @@ export default function PassengerPage() {
       }
     };
     RESERVA */
-    const onTripEnded = () => {
+    const onTripEnded = (payload?: { tripId?: string }) => {
+      // aviso atrasado de uma viagem antiga (ex.: encerrada porque outro motorista começou) não apaga a atual
+      if (payload?.tripId && payload.tripId !== tripId) return;
       setUi('NO_ACTIVE_TRIP');
       setTripId(null);
       clearVanMarker();
       // setCheckins([]); setPassengerMarkers([]); setPickupPoints([]); // RESERVA
       toast.info('A viagem foi finalizada pelo motorista.');
-    };
-    // Sem toast: o nome do motorista fica fixo no cartão de status.
-    const onTripStarted = (payload: { tripId: string; driverName?: string | null }) => {
-      if (payload.tripId) {
-        setTripId(payload.tripId);
-        setDriverName(payload.driverName ?? null);
-        setUi('ACTIVE_TRIP');
-        void bootstrapAndJoin(payload.tripId);
-      }
     };
     const onRealtimeError = (err: { code?: string; message?: string }) => {
       if (process.env.NODE_ENV === 'development') {
@@ -376,7 +386,6 @@ export default function PassengerPage() {
     // socket.on('checkin.created', onCheckinCreated); // RESERVA
     // socket.on('checkin.canceled', onCheckinCanceled); // RESERVA
     socket.on('trip.ended', onTripEnded);
-    socket.on('trip.started', onTripStarted);
     socket.on('realtime.error', onRealtimeError);
 
     return () => {
@@ -385,7 +394,6 @@ export default function PassengerPage() {
       // socket.off('checkin.created', onCheckinCreated); // RESERVA
       // socket.off('checkin.canceled', onCheckinCanceled); // RESERVA
       socket.off('trip.ended', onTripEnded);
-      socket.off('trip.started', onTripStarted);
       socket.off('realtime.error', onRealtimeError);
     };
   }, [showApp, ui, tripId, bootstrapAndJoin, clearVanMarker]);

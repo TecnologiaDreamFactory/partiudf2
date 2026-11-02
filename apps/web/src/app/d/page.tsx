@@ -180,6 +180,8 @@ export default function DriverPage() {
 
   const [statusLoading, setStatusLoading] = useState(true);
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
+  // uma van só: viagem aberta por OUTRO motorista (iniciar a minha encerra essa)
+  const [otherTrip, setOtherTrip] = useState<{ id: string; driverName: string | null } | null>(null);
   const [focusUserId, setFocusUserId] = useState<string | null>(null);
   const [collectedPickupPoints, setCollectedPickupPoints] = useState<Set<string>>(new Set());
   const [countsAtRecollect, setCountsAtRecollect] = useState<Record<string, number>>({});
@@ -341,10 +343,13 @@ export default function DriverPage() {
     setStatusLoading(true);
     fetchTripStatus()
       .then((res) => {
-        setHasActiveTrip(res.hasActiveTrip);
-        if (res.hasActiveTrip && res.trip) {
-          setTripId(res.trip.id);
-          setupSocketForTrip(res.trip.id);
+        // o status é da van (qualquer motorista): só é "minha" se eu sou o motorista
+        const mine = !!res.trip && res.trip.driverId === getUser()?.id;
+        setOtherTrip(res.trip && !mine ? { id: res.trip.id, driverName: res.trip.driverName } : null);
+        setHasActiveTrip(mine);
+        if (mine) {
+          setTripId(res.trip!.id);
+          setupSocketForTrip(res.trip!.id);
         } else {
           setTripId(null);
           clearTripAndListeners();
@@ -392,7 +397,12 @@ export default function DriverPage() {
 
     const socket = getSocket(token);
     const onTripStarted = () => loadStatus();
-    const onTripEnded = () => {
+    const onTripEnded = (payload?: { tripId?: string }) => {
+      // fim da viagem de outro motorista não mexe na minha
+      if (payload?.tripId && payload.tripId !== tripIdRef.current) {
+        setOtherTrip((prev) => (prev?.id === payload.tripId ? null : prev));
+        return;
+      }
       stopRealTracking();
       clearTripAndListeners();
     };
@@ -413,6 +423,7 @@ export default function DriverPage() {
       const data = await apiFetch<{ tripId: string }>('/trips/start', {
         method: 'POST',
       });
+      setOtherTrip(null);
       setTripId(data.tripId);
       setHasActiveTrip(true);
       setupSocketForTrip(data.tripId);
@@ -589,7 +600,15 @@ export default function DriverPage() {
 
       {!statusLoading && !hasActiveTrip && (
         <Card className="mb-4">
-          <p className="mb-3 text-df-muted">Sem viagem ativa</p>
+          {otherTrip ? (
+            <p className="mb-3 text-df-muted">
+              A van está em viagem com{' '}
+              <span className="text-df-ink">{otherTrip.driverName || 'outro motorista'}</span>. Ao
+              iniciar a sua, essa viagem será encerrada.
+            </p>
+          ) : (
+            <p className="mb-3 text-df-muted">Sem viagem ativa</p>
+          )}
           <Button onClick={handleStartTrip} disabled={loading}>
             {loading ? 'Iniciando...' : 'Iniciar viagem'}
           </Button>
