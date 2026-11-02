@@ -266,7 +266,8 @@ export default function PassengerPage() {
       }
     };
     run();
-    const id = setInterval(run, 4000);
+    // rede de segurança: início/fim de viagem já chegam pelo tempo real
+    const id = setInterval(run, 20_000);
     return () => {
       alive = false;
       clearInterval(id);

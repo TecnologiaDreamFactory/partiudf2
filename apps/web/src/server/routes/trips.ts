@@ -59,12 +59,45 @@ function lastLocation(t: TripRow) {
   };
 }
 
+/** Encerra viagens ainda ativas (as ja encerradas ficam como estao: o endedAt do relatorio nao muda). */
+async function endTrips(ids: string[]) {
+  if (ids.length === 0) return;
+  const endedAt = new Date();
+  await prisma.trip.updateMany({
+    where: { id: { in: ids }, status: 'ACTIVE' },
+    data: {
+      status: 'ENDED',
+      endedAt,
+      lastLat: null,
+      lastLng: null,
+      lastAccuracy: null,
+      lastSpeed: null,
+      lastHeading: null,
+      lastLocationAt: null,
+    },
+  });
+  await Promise.all(
+    ids.flatMap((tripId) => {
+      const payload = { tripId, endedAt: endedAt.toISOString() };
+      return [broadcast(`trip:${tripId}`, 'trip.ended', payload), broadcast('trips', 'trip.ended', payload)];
+    }),
+  );
+}
+
 export const tripRoutes: Route[] = [
   [
     'POST',
     '/trips/start',
     async (req) => {
       const { userId } = await requireActiveUser(req, ['DRIVER']);
+      // A empresa tem uma van so: nunca duas viagens ativas.
+      const active = await prisma.trip.findMany({ where: { status: 'ACTIVE' }, select: { id: true, driverId: true } });
+      // clique duplo ou app reaberto: continua a viagem que ja e dele
+      const mine = active.find((t) => t.driverId === userId);
+      if (mine) return { tripId: mine.id };
+      // viagem que o outro motorista esqueceu aberta: encerra antes de comecar a nova
+      // ponytail: dois "iniciar" no mesmo instante ainda podem abrir duas; a proxima partida corrige
+      await endTrips(active.map((t) => t.id));
       const trip = await prisma.trip.create({
         data: { driverId: userId, status: 'ACTIVE', startedAt: new Date() },
         include: withDriverName,
@@ -86,22 +119,7 @@ export const tripRoutes: Route[] = [
       const trip = await prisma.trip.findUnique({ where: { id } });
       if (!trip) throw notFound('Viagem não encontrada');
       if (trip.driverId !== userId) throw forbidden('Esta não é a sua viagem');
-      const endedAt = new Date();
-      await prisma.trip.update({
-        where: { id },
-        data: {
-          status: 'ENDED',
-          endedAt,
-          lastLat: null,
-          lastLng: null,
-          lastAccuracy: null,
-          lastSpeed: null,
-          lastHeading: null,
-          lastLocationAt: null,
-        },
-      });
-      const payload = { tripId: id, endedAt: endedAt.toISOString() };
-      await Promise.all([broadcast(`trip:${id}`, 'trip.ended', payload), broadcast('trips', 'trip.ended', payload)]);
+      await endTrips([id]);
       return { ok: true };
     },
   ],
