@@ -42,17 +42,21 @@ export function createDriverTracker(opts: {
   const state: TrackerState = { running: false };
   let watchId: number | null = null;
 
-  /** Intervalo fixo (5s) para enviar localização ao passageiro. */
+  /** Parado: reenvia a cada 5s (passageiro vê que o sinal está vivo). */
   const SEND_INTERVAL_MS = 5000;
-  /** Se moveu pelo menos isso desde o último envio, envia mesmo antes dos 5s. */
+  /**
+   * Em movimento: envia se andou 8m, mas nunca mais de 1 vez a cada 3s. Cada envio vira uma
+   * mensagem do Supabase Realtime por passageiro (100 pessoas a 1/s estouram o plano grátis).
+   */
   const MIN_MOVE_METERS = 8;
+  const MIN_SEND_GAP_MS = 3000;
 
   function shouldSend(now: number, lat: number, lng: number) {
     if (!state.lastSentAt || state.lastLat == null || state.lastLng == null)
       return true;
     const since = now - state.lastSentAt;
     const moved = metersBetween(state.lastLat, state.lastLng, lat, lng);
-    return since >= SEND_INTERVAL_MS || moved >= MIN_MOVE_METERS;
+    return since >= SEND_INTERVAL_MS || (moved >= MIN_MOVE_METERS && since >= MIN_SEND_GAP_MS);
   }
 
   function start() {

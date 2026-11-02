@@ -24,8 +24,9 @@ import {
 } from '@/lib/api';
 import { requireAuth, logout } from '@/lib/auth';
 import {
-  generateNumericPassword,
-  isValidNumericPassword,
+  generatePassword,
+  isValidPassword,
+  PASSWORD_RULE,
 } from '@/lib/auth/password';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -121,8 +122,8 @@ export default function AdminPage() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!isValidNumericPassword(createPassword)) {
-      setError('Senha deve ter de 4 a 8 dígitos numéricos');
+    if (!isValidPassword(createPassword.trim())) {
+      setError(`Senha fraca. ${PASSWORD_RULE}.`);
       return;
     }
     setCreateSaving(true);
@@ -159,8 +160,8 @@ export default function AdminPage() {
 
   const handleUpdate = async (id: string) => {
     setError('');
-    if (editPassword && !isValidNumericPassword(editPassword)) {
-      setError('Senha deve ter de 4 a 8 dígitos numéricos');
+    if (editPassword && !isValidPassword(editPassword.trim())) {
+      setError(`Senha fraca. ${PASSWORD_RULE}.`);
       return;
     }
     setEditSaving(true);
@@ -420,27 +421,23 @@ export default function AdminPage() {
             />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-df-ink">
-                Senha inicial (4-8 dígitos)
+                Senha inicial ({PASSWORD_RULE.toLowerCase()})
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
                   value={createPassword}
                   onChange={(e) =>
-                    setCreatePassword(
-                      e.target.value.replace(/\D/g, '').slice(0, 8)
-                    )
+                    setCreatePassword(e.target.value.slice(0, 64))
                   }
-                  placeholder="1234"
+                  placeholder="ex.: van2026"
                   required
                   className="min-w-0 flex-1 rounded-xl border border-df-border px-3 py-2.5 text-df-ink focus:border-dream-blue focus:outline-none focus:ring-2 focus:ring-dream-blue/30"
                 />
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setCreatePassword(generateNumericPassword(8))}
+                  onClick={() => setCreatePassword(generatePassword())}
                 >
                   Gerar senha
                 </Button>
@@ -590,20 +587,15 @@ export default function AdminPage() {
                         <div className="flex flex-col gap-2">
                           <div>
                             <label className="mb-1 block text-xs font-medium text-df-muted">
-                              Nova senha (opcional, 4-8 dígitos)
+                              Nova senha (opcional,{' '}
+                              {PASSWORD_RULE.toLowerCase()})
                             </label>
                             <div className="flex gap-2">
                               <input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
                                 value={editPassword}
                                 onChange={(e) =>
-                                  setEditPassword(
-                                    e.target.value
-                                      .replace(/\D/g, '')
-                                      .slice(0, 8)
-                                  )
+                                  setEditPassword(e.target.value.slice(0, 64))
                                 }
                                 placeholder="Deixe vazio para manter"
                                 className="min-w-0 flex-1 rounded-lg border border-df-border px-2 py-1 text-df-ink"
@@ -612,7 +604,7 @@ export default function AdminPage() {
                                 type="button"
                                 variant="ghost"
                                 onClick={() =>
-                                  setEditPassword(generateNumericPassword(8))
+                                  setEditPassword(generatePassword())
                                 }
                               >
                                 Gerar senha

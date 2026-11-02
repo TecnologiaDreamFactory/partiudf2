@@ -2,7 +2,7 @@ import 'server-only';
 import { prisma } from '@/server/db';
 import { hashPassword } from '@/server/routes/auth';
 import {
-  assertNumericPassword,
+  assertPassword,
   badRequest,
   conflict,
   notFound,
@@ -59,7 +59,7 @@ export const adminRoutes: Route[] = [
       const email = str(body.email);
       if (!email) throw badRequest('E-mail é obrigatório');
       if (!str(body.password)) throw badRequest('Senha é obrigatória');
-      const password = assertNumericPassword(body.password);
+      const password = assertPassword(body.password);
       if (!isRole(body.role)) throw roleError();
       const taken = await prisma.user.findUnique({ where: { email }, select: { id: true, deletedAt: true } });
       if (taken && !taken.deletedAt) throw conflict('E-mail já está em uso');
@@ -117,7 +117,7 @@ export const adminRoutes: Route[] = [
       if (body.name !== undefined) data.name = str(body.name) || null;
       if (body.avatarUrl !== undefined) data.avatarUrl = str(body.avatarUrl) || null;
       if (body.password !== undefined && body.password !== '') {
-        data.password = await hashPassword(assertNumericPassword(body.password));
+        data.password = await hashPassword(assertPassword(body.password));
         // senha redefinida pelo admin vira provisoria para o motorista
         if ((data.role ?? target.role) === 'DRIVER') data.mustChangePassword = true;
       }

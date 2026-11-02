@@ -8,6 +8,7 @@ import { config } from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type UserRole } from '../src/generated/prisma/client';
+import { isValidPassword, PASSWORD_RULE } from '../src/lib/auth/password';
 
 config({ path: '.env.local' });
 
@@ -30,8 +31,8 @@ async function upsertUser(email: string, password: string, role: UserRole) {
 async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-  if (!adminEmail || !/^\d{4,8}$/.test(adminPassword ?? '')) {
-    throw new Error('Defina SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD (4 a 8 dígitos) antes do seed.');
+  if (!adminEmail || !isValidPassword(adminPassword ?? '')) {
+    throw new Error(`Defina SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD (${PASSWORD_RULE.toLowerCase()}) antes do seed.`);
   }
   await upsertUser(adminEmail, adminPassword!, 'ADMIN');
 
@@ -41,7 +42,7 @@ async function main() {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const devPw = process.env.SEED_DEV_PASSWORD || '123456';
+    const devPw = process.env.SEED_DEV_PASSWORD || 'teste123';
     await upsertUser('driver@local', devPw, 'DRIVER');
     await upsertUser('p1@local', devPw, 'PASSENGER');
     await upsertUser('p2@local', devPw, 'PASSENGER');

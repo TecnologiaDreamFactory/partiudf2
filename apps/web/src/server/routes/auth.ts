@@ -3,17 +3,18 @@ import bcrypt from 'bcryptjs';
 // import { randomBytes } from 'node:crypto'; // RESERVA (desativada no MVP)
 import { prisma } from '@/server/db';
 import {
-  assertNumericPassword,
+  assertPassword,
   badRequest,
   forbidden,
   readBody,
-  requireUser,
+  requireActiveUser,
   signToken,
   str,
   unauthorized,
   type Role,
 } from '@/server/http';
 import type { Route } from '@/server/router';
+import { isValidPassword } from '@/lib/auth/password';
 
 const SALT_ROUNDS = 10;
 // RESERVA (desativada no MVP)
@@ -40,13 +41,14 @@ const publicUser = (u: DbUser) => ({
 export const hashPassword = (pw: string) => bcrypt.hash(pw, SALT_ROUNDS);
 
 async function updateProfile(req: Request) {
-  const { userId } = requireUser(req);
+  // conta inativa/excluida nao mexe no perfil, mesmo com o login antigo ainda valido
+  const { userId } = await requireActiveUser(req);
   const body = await readBody(req);
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
       ...(body.avatarUrl !== undefined && { avatarUrl: str(body.avatarUrl) || null }),
-      ...(body.name !== undefined && { name: str(body.name) || null }),
+      ...(body.name !== undefined && { name: str(body.name).slice(0, 60) || null }),
     },
   });
   return publicUser(user);
@@ -58,10 +60,15 @@ export const authRoutes: Route[] = [
     '/auth/login',
     async (req) => {
       const body = await readBody(req);
-      const pw = assertNumericPassword(body.password);
-      const user = await prisma.user.findUnique({ where: { email: str(body.email) } });
+      // aceita qualquer senha cadastrada; a que estiver fora da regra nova obriga a troca
+      const pw = str(body.password);
+      if (!pw || pw.length > 64) throw unauthorized();
+      let user = await prisma.user.findUnique({ where: { email: str(body.email) } });
       if (!user || !(await bcrypt.compare(pw, user.password))) throw unauthorized();
       if (!user.active) throw forbidden('Usuário inativo. Fale com o administrador.');
+      if (!isValidPassword(pw) && !user.mustChangePassword) {
+        user = await prisma.user.update({ where: { id: user.id }, data: { mustChangePassword: true } });
+      }
       // admin fica 30 dias; motorista 12h (um turno: o celular é compartilhado); passageiro com login, 1h
       const expiresIn = user.role === 'ADMIN' ? '30d' : user.role === 'DRIVER' ? '12h' : '1h';
       return { token: signToken({ userId: user.id, role: user.role }, expiresIn), user: publicUser(user) };
@@ -95,7 +102,7 @@ export const authRoutes: Route[] = [
     'GET',
     '/auth/me',
     async (req) => {
-      const { userId, role } = requireUser(req);
+      const { userId, role } = await requireActiveUser(req, undefined, { allowPasswordChange: true });
       const user = await prisma.user.findUnique({ where: { id: userId } });
       return user ? publicUser(user) : { id: userId, email: '', role };
     },
@@ -104,12 +111,13 @@ export const authRoutes: Route[] = [
     'PATCH',
     '/auth/password',
     async (req) => {
-      const { userId } = requireUser(req);
+      const { userId } = await requireActiveUser(req, undefined, { allowPasswordChange: true });
       const body = await readBody(req);
-      const current = assertNumericPassword(body.currentPassword);
-      const next = assertNumericPassword(body.newPassword);
+      const current = str(body.currentPassword);
+      const next = assertPassword(body.newPassword);
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user || !(await bcrypt.compare(current, user.password))) throw unauthorized();
+      // 400 e nao 401: o front desloga em qualquer 401
+      if (!user || !(await bcrypt.compare(current, user.password))) throw badRequest('Senha atual incorreta');
       if (next === current) throw badRequest('A nova senha precisa ser diferente da atual');
       await prisma.user.update({
         where: { id: userId },

@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHmac } from 'node:crypto';
 import { prisma } from '@/server/db';
 import { broadcast } from '@/server/realtime';
 import {
@@ -15,9 +16,20 @@ import {
 import { toEnriched, checkinInclude } from '@/server/routes/checkins';
 import type { Route } from '@/server/router';
 
-/** Limite do Nest: no maximo 1 posicao a cada 500ms por viagem. */
-const MIN_LOCATION_INTERVAL_MS = 500;
+/**
+ * No maximo 1 posicao a cada 2s por viagem (o app manda a cada 3s). Cada posicao vira uma
+ * mensagem do Supabase Realtime POR passageiro: e isso que gasta a cota do plano.
+ */
+const MIN_LOCATION_INTERVAL_MS = 2000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// ponytail: operadoras de celular (CGNAT) poem muita gente no mesmo IP; 30 cobre uma van cheia esperando.
+const MAX_VIEWERS_PER_IP = 30;
+
+/** HMAC do IP do cliente (a Vercel sobrescreve x-real-ip/x-forwarded-for: o cliente nao forja). */
+function clientIpHash(req: Request): string {
+  const ip = req.headers.get('x-real-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
+  return createHmac('sha256', process.env.JWT_SECRET ?? '').update(ip).digest('hex').slice(0, 32);
+}
 
 // Nome do motorista vai no status publico: o /p mostra no balao da van.
 const withDriverName = { driver: { select: { name: true } } } as const;
@@ -114,7 +126,7 @@ export const tripRoutes: Route[] = [
 
       const now = Date.now();
       if (trip.lastLocationAt && now - trip.lastLocationAt.getTime() < MIN_LOCATION_INTERVAL_MS) {
-        throw new HttpError(429, 'Limite de envio: no máximo 1 localização a cada 500ms');
+        throw new HttpError(429, 'Limite de envio: no máximo 1 localização a cada 2s');
       }
 
       const accuracy = num(body.accuracy);
@@ -145,8 +157,9 @@ export const tripRoutes: Route[] = [
     },
   ],
   [
-    // Publico: o /p avisa "este aparelho acompanhou a viagem" (para o relatorio do admin).
-    // ponytail: qualquer um pode inflar a contagem com UUIDs aleatorios; rate limit por IP se importar.
+    // Publico: a pagina inicial avisa "este aparelho acompanhou a viagem" (relatorio do admin).
+    // Cada rede (IP) conta no maximo MAX_VIEWERS_PER_IP pessoas por viagem; acima disso responde ok
+    // mas nao conta (UUID aleatorio em loop nao infla mais o relatorio).
     'POST',
     '/trips/:id/view',
     async (req, { id }) => {
@@ -154,7 +167,16 @@ export const tripRoutes: Route[] = [
       if (!UUID_RE.test(visitorId)) throw badRequest('visitorId inválido');
       const trip = await prisma.trip.findUnique({ where: { id }, select: { status: true } });
       if (!trip || trip.status !== 'ACTIVE') throw notFound('Viagem não encontrada');
-      await prisma.tripViewer.createMany({ data: [{ tripId: id, visitorId }], skipDuplicates: true });
+      const ipHash = clientIpHash(req);
+      // trava por (viagem, rede) dentro da transacao: pedidos simultaneos nao furam o limite
+      await prisma.$transaction([
+        prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id + ipHash}))`,
+        prisma.$executeRaw`
+          INSERT INTO "TripViewer" ("tripId", "visitorId", "ipHash")
+          SELECT ${id}, ${visitorId}::uuid, ${ipHash}
+          WHERE (SELECT count(*) FROM "TripViewer" WHERE "tripId" = ${id} AND "ipHash" = ${ipHash}) < ${MAX_VIEWERS_PER_IP}
+          ON CONFLICT DO NOTHING`,
+      ]);
       return { ok: true };
     },
   ],

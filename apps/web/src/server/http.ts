@@ -1,6 +1,7 @@
 import 'server-only';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/server/db';
+import { isValidPassword, PASSWORD_RULE } from '@/lib/auth/password';
 
 export type Role = 'ADMIN' | 'DRIVER' | 'PASSENGER';
 
@@ -50,15 +51,22 @@ export function requireUser(req: Request, roles?: Role[]): AuthedUser {
   return { userId: payload.sub, role: payload.role };
 }
 
-/** requireUser + confere no banco se a conta ainda existe e esta ativa (o JWT vale 30 dias). */
-export async function requireActiveUser(req: Request, roles?: Role[]): Promise<AuthedUser> {
+/**
+ * requireUser + confere no banco se a conta ainda existe e esta ativa (o JWT continua valido
+ * depois de inativar). allowPasswordChange: rotas que a pessoa precisa para trocar a senha.
+ */
+export async function requireActiveUser(
+  req: Request,
+  roles?: Role[],
+  { allowPasswordChange = false } = {},
+): Promise<AuthedUser> {
   const user = requireUser(req, roles);
   const row = await prisma.user.findUnique({
     where: { id: user.userId },
     select: { active: true, mustChangePassword: true },
   });
   if (!row?.active) throw forbidden('Usuário inativo');
-  if (row.mustChangePassword) throw forbidden('Troque a senha provisória antes de continuar');
+  if (row.mustChangePassword && !allowPasswordChange) throw forbidden('Troque sua senha antes de continuar');
   return user;
 }
 
@@ -75,9 +83,9 @@ export async function readBody(req: Request): Promise<Record<string, unknown>> {
 export const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 export const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 
-const NUMERIC_PASSWORD = /^\d{4,8}$/;
-export function assertNumericPassword(pw: unknown): string {
+/** Senha nova (criar/trocar) tem que seguir a regra; no login vale qualquer uma (as antigas forçam a troca). */
+export function assertPassword(pw: unknown): string {
   const s = str(pw);
-  if (!NUMERIC_PASSWORD.test(s)) throw badRequest('Senha deve ter de 4 a 8 dígitos numéricos');
+  if (!isValidPassword(s)) throw badRequest(`Senha fraca. ${PASSWORD_RULE}.`);
   return s;
 }

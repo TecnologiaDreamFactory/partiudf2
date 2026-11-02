@@ -41,6 +41,13 @@ export interface CreatePassengerIconOpts {
   highlight?: boolean;
 }
 
+/**
+ * Texto puro para balões do Leaflet: string em bindTooltip/setContent vira HTML.
+ * Sem isto, um nome como `<img onerror=...>` roda código no celular de quem toca na van.
+ */
+export const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 /** Ícone de passageiro: avatar circular ou fallback iniciais */
 export function createPassengerIcon(
   L: { divIcon: (_o: Record<string, unknown>) => DivIcon },

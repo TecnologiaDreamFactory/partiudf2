@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, updatePassword } from '@/lib/api';
 import { setAuth } from '@/lib/auth';
-import { isValidNumericPassword } from '@/lib/auth/password';
+import { isValidPassword, PASSWORD_RULE } from '@/lib/auth/password';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -17,8 +17,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // senha provisória: guarda a atual para trocar sem pedir de novo
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  // troca obrigatória (provisória ou fora da regra): guarda a atual para não pedir de novo
+  const [pending, setPending] = useState<{
+    password: string;
+    role: string;
+  } | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -33,10 +36,6 @@ export default function LoginPage() {
     setError('');
 
     const pw = password.trim();
-    if (!isValidNumericPassword(pw)) {
-      setError('Senha deve ter de 4 a 8 dígitos numéricos');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -45,7 +44,7 @@ export default function LoginPage() {
       setAuth({ token: data.token, user: data.user });
 
       if (data.user.mustChangePassword) {
-        setTempPassword(pw);
+        setPending({ password: pw, role: data.user.role });
         return;
       }
       goHome(data.user.role);
@@ -60,8 +59,8 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     const next = newPassword.trim();
-    if (!isValidNumericPassword(next)) {
-      setError('Senha deve ter de 4 a 8 dígitos numéricos');
+    if (!isValidPassword(next)) {
+      setError(`Senha fraca. ${PASSWORD_RULE}.`);
       return;
     }
     if (next !== confirmPassword.trim()) {
@@ -71,10 +70,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await updatePassword({
-        currentPassword: tempPassword!,
+        currentPassword: pending!.password,
         newPassword: next,
       });
-      router.push('/d');
+      goHome(pending!.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao trocar a senha');
     } finally {
@@ -95,7 +94,7 @@ export default function LoginPage() {
       </div>
 
       <div className="flex flex-1 flex-col justify-center py-10">
-        {tempPassword === null ? (
+        {pending === null ? (
           <>
             <Tag>Acesso</Tag>
             <h1 className="mt-5 text-[44px] text-df-ink sm:text-[56px]">
@@ -134,10 +133,8 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••"
+                  placeholder="••••••"
                   autoComplete="current-password"
-                  inputMode="numeric"
-                  hint="4 a 8 dígitos numéricos"
                 />
                 <Button type="submit" size="lg" isLoading={loading} fullWidth>
                   {loading ? 'entrando…' : 'entrar'}
@@ -147,13 +144,13 @@ export default function LoginPage() {
           </>
         ) : (
           <>
-            <Tag>Primeiro acesso</Tag>
+            <Tag>Nova senha</Tag>
             <h1 className="mt-5 text-[44px] text-df-ink sm:text-[56px]">
               crie sua <span className="text-grad">senha</span>
             </h1>
             <p className="mt-3 text-[15px] text-df-muted">
-              A senha que você recebeu é provisória. Escolha uma só sua para
-              continuar.
+              Sua senha é provisória ou não segue o padrão de segurança. Crie
+              uma só sua para continuar.
             </p>
 
             <Card className="mt-8">
@@ -173,10 +170,9 @@ export default function LoginPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  placeholder="••••"
+                  placeholder="••••••"
                   autoComplete="new-password"
-                  inputMode="numeric"
-                  hint="4 a 8 dígitos numéricos"
+                  hint={PASSWORD_RULE}
                 />
                 <Input
                   label="Repita a nova senha"
@@ -185,9 +181,8 @@ export default function LoginPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  placeholder="••••"
+                  placeholder="••••••"
                   autoComplete="new-password"
-                  inputMode="numeric"
                 />
                 <Button type="submit" size="lg" isLoading={loading} fullWidth>
                   {loading ? 'salvando…' : 'salvar e continuar'}

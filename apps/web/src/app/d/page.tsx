@@ -600,7 +600,7 @@ export default function DriverPage() {
         <>
           <Card className="mb-4">
             {/* <p> e não <h2>: os títulos do guide são minúsculos e o nome perderia as maiúsculas */}
-            <p className="mb-3 text-2xl font-semibold leading-tight text-df-ink">
+            <p className="mb-3 break-words text-2xl font-semibold leading-tight text-df-ink">
               Boa viagem
               {myName && (
                 <>

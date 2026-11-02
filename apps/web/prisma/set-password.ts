@@ -1,17 +1,18 @@
 /**
  * Troca a senha de um usuario.
- *   pnpm --filter @partiudf/web db:set-password admin@local 312408
+ *   pnpm --filter @partiudf/web db:set-password admin@local trocar123
  */
 import { config } from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { isValidPassword, PASSWORD_RULE } from '../src/lib/auth/password';
 
 config({ path: '.env.local' });
 
 const [email, password] = process.argv.slice(2);
-if (!email || !/^\d{4,8}$/.test(password ?? '')) {
-  console.error('Uso: db:set-password <email> <senha de 4 a 8 dígitos>');
+if (!email || !isValidPassword(password ?? '')) {
+  console.error(`Uso: db:set-password <email> <senha> (${PASSWORD_RULE.toLowerCase()})`);
   process.exit(1);
 }
 

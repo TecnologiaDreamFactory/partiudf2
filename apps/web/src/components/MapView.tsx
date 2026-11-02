@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { vanPinIcon, createPassengerIcon, createPickupPointIcon } from '@/lib/map/icons';
+import { vanPinIcon, createPassengerIcon, createPickupPointIcon, escapeHtml } from '@/lib/map/icons';
 import { chooseInitialCenter, safeFollow } from '@/lib/map/utils';
 import { MARINA_CENTER, DEFAULT_ZOOM } from '@/lib/map/constants';
 import { TimeAgo } from '@/components/TimeAgo';
+import { gsap, prefersReducedMotion } from '@/lib/motion';
 
 export interface MapPosition {
   lat: number;
@@ -71,6 +72,7 @@ export function MapView({
   className = '',
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const vanTweenRef = useRef<gsap.core.Tween | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [userGeo, setUserGeo] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const appliedBestReasonRef = useRef<'van' | 'user' | null>(null);
@@ -135,7 +137,7 @@ export function MapView({
         zIndexOffset: 1000,
       });
 
-      vanMarker.bindTooltip(vanTooltip, {
+      vanMarker.bindTooltip(escapeHtml(vanTooltip), {
         permanent: false,
         direction: 'top',
         offset: [0, -18],
@@ -168,7 +170,7 @@ export function MapView({
 
   // Texto do balão da van (nome do motorista) sem recriar o mapa.
   useEffect(() => {
-    if (mapReady) mapRef.current?.vanMarker.setTooltipContent(vanTooltip);
+    if (mapReady) mapRef.current?.vanMarker.setTooltipContent(escapeHtml(vanTooltip));
   }, [mapReady, vanTooltip]);
 
   // Apply smart initial center when we get lastLocation or userGeo (upgrade from Marina)
@@ -212,19 +214,32 @@ export function MapView({
     if (!ref || !mapReady) return;
 
     if (!vanPosition) {
+      vanTweenRef.current?.kill();
       if (ref.map.hasLayer(ref.vanMarker)) {
         ref.map.removeLayer(ref.vanMarker);
       }
       return;
     }
 
-    if (!ref.map.hasLayer(ref.vanMarker)) {
-      ref.vanMarker.addTo(ref.map);
-    }
-
     const lat = vanPosition.lat;
     const lng = vanPosition.lng;
-    ref.vanMarker.setLatLng([lat, lng]);
+    const from = ref.vanMarker.getLatLng();
+    vanTweenRef.current?.kill();
+    if (!ref.map.hasLayer(ref.vanMarker)) {
+      ref.vanMarker.setLatLng([lat, lng]).addTo(ref.map);
+    } else if (prefersReducedMotion() || ref.map.distance(from, [lat, lng]) > 2000) {
+      ref.vanMarker.setLatLng([lat, lng]);
+    } else {
+      // posições chegam a cada ~3s: a van desliza até a nova em vez de pular
+      const pos = { lat: from.lat, lng: from.lng };
+      vanTweenRef.current = gsap.to(pos, {
+        lat,
+        lng,
+        duration: 2.5,
+        ease: 'none',
+        onUpdate: () => ref.vanMarker.setLatLng([pos.lat, pos.lng]),
+      });
+    }
 
     // PanTo (follow) só quando accuracy <= 200m; marker sempre atualiza.
     const accuracy = 'accuracy' in vanPosition ? vanPosition.accuracy : undefined;
@@ -262,9 +277,9 @@ export function MapView({
           avatarUrl: pm.avatarUrl,
           highlight: pm.userId === focusUserId,
         });
-        const tooltipText = pm.pickupPointName
-          ? `${pm.label} (${pm.pickupPointName})`
-          : pm.label;
+        const tooltipText = escapeHtml(
+          pm.pickupPointName ? `${pm.label} (${pm.pickupPointName})` : pm.label,
+        );
 
         if (existing) {
           existing.setLatLng([pm.lat, pm.lng]);
@@ -310,7 +325,7 @@ export function MapView({
           icon: createPickupPointIcon(L, pp.name),
           zIndexOffset: 100,
         });
-        marker.bindTooltip(pp.name, { permanent: false, direction: 'top', offset: [0, -8] });
+        marker.bindTooltip(escapeHtml(pp.name), { permanent: false, direction: 'top', offset: [0, -8] });
         ref!.pickupLayer.addLayer(marker);
       });
     });

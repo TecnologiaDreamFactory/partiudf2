@@ -4,7 +4,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAuthMe, updateUsersMe, updatePassword } from '@/lib/api';
 import { requireAuth, logout } from '@/lib/auth';
-import { isValidNumericPassword } from '@/lib/auth/password';
+import { isValidPassword, PASSWORD_RULE } from '@/lib/auth/password';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -65,12 +65,12 @@ export default function ProfilePage() {
     setPasswordSuccess(false);
     const current = currentPassword.trim();
     const next = newPassword.trim();
-    if (!isValidNumericPassword(current)) {
-      setPasswordError('Senha atual deve ter de 4 a 8 dígitos');
+    if (!current) {
+      setPasswordError('Informe a senha atual');
       return;
     }
-    if (!isValidNumericPassword(next)) {
-      setPasswordError('Nova senha deve ter de 4 a 8 dígitos');
+    if (!isValidPassword(next)) {
+      setPasswordError(`Senha fraca. ${PASSWORD_RULE}.`);
       return;
     }
     setPasswordSaving(true);
@@ -178,7 +178,6 @@ export default function ProfilePage() {
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
-            placeholder="4-8 dígitos"
             autoComplete="current-password"
           />
           <Input
@@ -188,7 +187,7 @@ export default function ProfilePage() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
-            placeholder="4-8 dígitos"
+            hint={PASSWORD_RULE}
             autoComplete="new-password"
           />
           <Button type="submit" disabled={passwordSaving}>
